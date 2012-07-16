@@ -171,8 +171,8 @@ Open this with a browser of your choice (I only tried chromium) and it should wo
 
 # *Edit:* Trying it out
 
-As suggested in a comment, I have uploaded the compiled javascript file (the haste version because the UHC version has several dependencies) here: [Hello, World!](https://sites.google.com/site/mindlettice/home/files/HelloWorld.js?attredirects=0&amp;d=1)
+As suggested in a comment, I have uploaded the compiled javascript file (the haste version because the UHC version has several dependencies) here: [Hello, World!](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/2_HelloWorld/HelloWorld.js)
 
-Download it and [this](https://sites.google.com/site/mindlettice/home/files/HelloWorld.html?attredirects=0&amp;d=1) html file into the same directory. Than open the html with a browser of your choice (tested on ubuntu linux, chromium).
+Download it and [this](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/2_HelloWorld/HelloWorld.html) html file into the same directory. Than open the html with a browser of your choice (tested on ubuntu linux, chromium).
 
 Edit: Rewrote with pandoc
