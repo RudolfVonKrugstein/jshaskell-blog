@@ -19,3 +19,5 @@ All of the information (or at least most if it) I found in the internet or by as
 
 The intent of this blog will be to make it easier for other with the same goal to get started with javascript games written in haskell. It is an attempt of me to give back to the community.
 I will try to make the posts very tutorial style. Sometimes I will redirect to other pages when I find it unnecessary to repeat the information here that can be found there.
+
+Edit1: Rewrote with pandoc
