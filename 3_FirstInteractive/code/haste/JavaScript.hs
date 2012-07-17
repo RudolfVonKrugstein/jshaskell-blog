@@ -32,8 +32,8 @@ setFillColor ctx = jsSetFillColor ctx . toJSStr
 foreign import ccall "jsClear"
   clear :: Context2D -> IO ()
 
-foreign import ccall jsSetInterval :: Int -> JSFun (IO ()) -> IO ()
-setInterval :: Int -> IO () -> IO ()
+foreign import ccall jsSetInterval :: Double -> JSFun (IO ()) -> IO ()
+setInterval :: Double -> IO () -> IO ()
 setInterval time cb =
   jsSetInterval time (mkCallback $! cb)
 

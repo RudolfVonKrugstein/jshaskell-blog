@@ -15,9 +15,9 @@ initState = State 300.0
 
 main = do
   saveGlobalObject "state" initState
-  setInterval 30 update
-  success <- setOnKeyDown canvasName onKeyDown
-  if not success then alert "Unable to set keyDown event" else return ()
+  setInterval 30.0 update
+  setOnKeyDown canvasName onKeyDown
+  return ()
 
 onKeyDown :: Int -> IO ()
 onKeyDown code = do
