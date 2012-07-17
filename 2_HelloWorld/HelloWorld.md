@@ -112,7 +112,7 @@ Haste can be found here: [Haste GitHub](https://github.com/valderman/haste-compi
 
 ## Hello World with haste
 
-Again, we need a way to import a function to get the document and to write into the contents of the document. Information on how to import javascript functions can be found in <a [the doc subdirectory](https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt) of the haste repository.
+Again, we need a way to import a function to get the document and to write into the contents of the document. Information on how to import javascript functions can be found in [the doc subdirectory](https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt) of the haste repository.
 
 Haste is not as flexible as UHC when importing JavaScript functions. It does not allow placing the parameters of the haskell function in the javascript code with "%N". It also does not allow the custom type "Document" to be used as a parameter or return type. Instead "JSAny" must be used. Also the return type of the JavaScript functions must be
 
