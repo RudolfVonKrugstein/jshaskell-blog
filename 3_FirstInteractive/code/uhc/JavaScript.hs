@@ -2,8 +2,9 @@ import UHC.Ptr
 
 data JSKeyEvent
 data Document
+data Element
 data Context2D
-data Canvas
+
 type JSString = PackedString
 foreign import prim "primStringToPackedString" toJS :: String -> JSString
 
@@ -12,16 +13,15 @@ alert = jsAlert . toJS
 
 foreign import js "document"
     document :: IO Document
-foreign import js "%1.getElementById(%2)"
-    jsGetElementById :: Document -> JSString -> IO Canvas
-getElementById doc = jsGetElementById doc . toJS
+foreign import js "document.getElementById(%1)"
+    jsGetElementById :: JSString -> IO Element
+getElementById = jsGetElementById . toJS
 foreign import js "%1.getContext('2d')"
-    getContext2dFromCanvas :: Canvas -> IO Context2D
+    getContext2dFromCanvas :: Element -> IO Context2D
 
 getContext2d :: String -> IO Context2D
 getContext2d canvasName = do
-  d <- document
-  c <- getElementById d canvasName
+  c <- getElementById canvasName
   getContext2dFromCanvas c
 
 foreign import js "%1.fillRect(%*)"
@@ -50,21 +50,23 @@ foreign import js "%1.keyCode"
 
 
 foreign import js "%1.addEventListener('keydown',%2,true)"
-  jsSetOnKeyDown :: JSString -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
+  jsSetOnKeyDown :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
 setOnKeyDown :: String -> (Int -> IO ()) -> IO ()
 setOnKeyDown elemName fp = do
   cb <- mkKeyEventCb fp'
-  jsSetOnKeyDown (toJS elemName) cb
+  el <- getElementById elemName
+  jsSetOnKeyDown el cb
   where
     fp' event = keyCode event >>= fp
 
 foreign import js "%1.addEventListener('keyup',%2,true)"
-  jsSetOnKeyUp :: JSString -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
+  jsSetOnKeyUp :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
 
 setOnKeyUp :: String -> (Int -> IO ()) -> IO ()
 setOnKeyUp elemName fp = do
   cb <- mkKeyEventCb fp'
-  jsSetOnKeyUp (toJS elemName) cb
+  el <- getElementById elemName
+  jsSetOnKeyUp el cb
   where
     fp' event = keyCode event >>= fp
 

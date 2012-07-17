@@ -42,6 +42,11 @@ function jsSetInterval(msecs, cb, _) {
 	return [1,0];
 }
 
+function jsSetOnLoad(cb, _) {
+	window.addEventListener('load', function() {A(cb,[0]);}, false);
+	return [1,0];
+}
+
 var allObjects = {}
 
 function jsSaveGlobalObject(name, obj) {

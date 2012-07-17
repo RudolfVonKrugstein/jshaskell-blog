@@ -1,9 +1,9 @@
 var allObjects = {}
 
-function saveObject(name, obj) {
+function jsSaveGlobalObject(name, obj) {
 	 allObjects[name] = obj;
 }
 
-function loadObject(name) {
+function jsLoadGlobalObject(name) {
 	 return allObjects[name];
 }

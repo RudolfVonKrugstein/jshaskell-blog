@@ -5,6 +5,7 @@ module JavaScript(
   setFillColor,
   clear,
   setInterval,
+  setOnLoad,
   setOnKeyDown,
   setOnKeyUp,
   saveGlobalObject,
@@ -36,6 +37,9 @@ foreign import ccall jsSetInterval :: Double -> JSFun (IO ()) -> IO ()
 setInterval :: Double -> IO () -> IO ()
 setInterval time cb =
   jsSetInterval time (mkCallback $! cb)
+
+foreign import ccall jsSetOnLoad :: JSFun (IO ()) -> IO ()
+setOnLoad cb = jsSetOnLoad (mkCallback $! cb)
 
 setOnKeyDown :: String -> (Int -> IO ()) -> IO Bool
 setOnKeyDown elementName cb = withElem elementName $ \e -> setCallback e OnKeyDown cb

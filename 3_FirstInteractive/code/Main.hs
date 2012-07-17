@@ -13,7 +13,10 @@ playerColor = "green"
 data State = State {x :: Double}
 initState = State 300.0
 
-main = do
+main = setOnLoad initilize
+
+initilize :: IO ()
+initilize = do
   saveGlobalObject "state" initState
   setInterval 30.0 update
   setOnKeyDown canvasName onKeyDown
