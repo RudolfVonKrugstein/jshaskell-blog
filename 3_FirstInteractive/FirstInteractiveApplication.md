@@ -3,7 +3,7 @@ In the [last Post](http://jshaskell.blogspot.de/2012/07/hello-world.html) we wro
 We now want to do something more game like. Out goal over the next few post will be to write a breackout clone in haskell, running in the browser!
 But first there are still a few things we need. To explore this we will write a little application displaying the paddle that can be moved with the arrow keys. Here is a preview (you have to click on it so that it gains focus):
 
-<script src="https://sites.google.com/site/mindlettice/interactiveApp.txt" type="text/javascript">
+<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/cf545c8d00373b2e8507ef1ba0a7242bdc1d7fa8/3_FirstInteractive/code/compiled/Main.js" type="text/javascript">
 </script>
 <canvas height="400" id="canvas1" style="background-color: white;" width="600" tabindex="0"></canvas>
 
