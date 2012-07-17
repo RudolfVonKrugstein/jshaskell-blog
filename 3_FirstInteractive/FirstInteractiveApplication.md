@@ -1,15 +1,15 @@
-In the [last Pos](http://jshaskell.blogspot.de/2012/07/hello-world.html) we wrote the first "Hello, World!" application. We saw how to import javascript functions in UHC and haste.
+In the [last Post](http://jshaskell.blogspot.de/2012/07/hello-world.html) we wrote the first "Hello, World!" application. We saw how to import javascript functions in UHC and haste.
 
 We now want to do something more game like. Out goal over the next few post will be to write a breackout clone written in haskell, running in the browser!
-But first there are still a few things we need. To explore this we will write a little application displaying the paddle that can be moved with the arrow keys. Here is a preview:
+But first there are still a few things we need. To explore this we will write a little application displaying the paddle that can be moved with the arrow keys. Here is a preview (you have to click on it so that it gains focus):
 
 <script src="https://sites.google.com/site/mindlettice/interactiveApp.txt" type="text/javascript">
 </script>
 <canvas height="400" id="canvas1" style="background-color: white;" width="600" tabindex="0"></canvas>
 
-For this we need to learn howto:
+For this we need to learn how to:
 
-* Set callbacks</li>
+* Set callbacks
 * Let different callback communicate
 * Draw on the canvas
 
@@ -18,9 +18,9 @@ For this we need to learn howto:
 Before we want to start our game, we have to allow the browser to load the full page and its elements. Otherwise we can not access e.g. the canvas (the drawing area we will use).
 
 The browser tells us, that it is done with loading by invoking the callback window.onLoad.
-When compiling with haste, our main will already be set to the window.onLoad, but in UHC we have to set a callback by hand.
+Depending how we compile with haste, our main will already be set to the window.onLoad (the option --start==asap prevents this), but in UHC we have to set a callback by hand. We will use the --start=asap option in haste so that our main code can be the same for haste and UHC.
 
-As can be read at several places (e. g. (here)[http://nokarma.org/2011/02/02/javascript-game-development-the-game-loop/index.html) or [here](http://www.playmycode.com/blog/2011/08/building-a-game-mainloop-in-javascript/)) we can not just write an infinite loop for our GameLoop in javascript because it would block the browser. The contents of the canvas will only be updated when our code returns.
+As can be read at several places (e. g. [here](http://nokarma.org/2011/02/02/javascript-game-development-the-game-loop/index.html) or [here](http://www.playmycode.com/blog/2011/08/building-a-game-mainloop-in-javascript/)) we can not just write an infinite loop for our GameLoop in javascript because it would block the browser. The contents of the canvas will only be updated when our code returns.
 
 So we need a function that is called in intervals. Javascript allows us to set the interval with e. g. window.setInterval.
 
@@ -34,7 +34,7 @@ In UHC we import a special function for this which converts haskell functions to
 
 ```haskell
 import UHC.Ptr
-foreign import js "wrapper" mkCb :: IO () -> IO (FunPtr (IO ())
+foreign import js "wrapper" mkCb :: IO () -> IO (FunPtr (IO ()))
 ```
 
 This converts an IO action to a function pointer that can be passed to javascript.
@@ -47,47 +47,54 @@ foreign import js "wrapper"
     mkKeyEventCb :: (JSKeyEvent -> IO ()) -> IO (FunPtr (JSKeyEvent -> IO ()))
 ```
 
-We now need to import the functions with which we set the callbacks. The interval function is set with "setInterval" while "onLoad" and the key event callbacks can be set with "addEventListener".
-
-For these functions we define simplified version that take care of creating the the callback for us.
+We now need to import the functions with which we set the callbacks. The interval function is set with "setInterval" while "onLoad" and the key event callbacks can be set with "addEventListener". For these functions we define simplified versions that take care of creating the callback for us.
 
 ```haskell
+data Element
+
+foreign import js "document.getElementById(%1)"
+    jsGetElementById :: JSString -> IO Element
+getElementById = jsGetElementById . toJS
+
 foreign import js "%1.keyCode"
   keyCode :: JSKeyEvent -> IO Int
 
-
-foreign import js "window.addEventListener('keydown',%1,true)"
-  jsSetOnKeyDown :: FunPtr (JSKeyEvent -> IO ()) -> IO ()
-setOnKeyDown (Int -> IO ()) -> IO ()
-setOnKeyDown fp = dp
+foreign import js "%1.addEventListener('keydown',%2,true)"
+  jsSetOnKeyDown :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
+setOnKeyDown :: String -> (Int -> IO ()) -> IO ()
+setOnKeyDown elemName fp = do
   cb <- mkKeyEventCb fp'
-  jsSetOnKeyDown cb
+  el <- getElementById elemName
+  jsSetOnKeyDown el cb
   where
     fp' event = keyCode event >>= fp
 
-foreign import js "window.addEventListener('keyup',%1,true)"
-  jsSetOnKeyUp :: FunPtr (JSKeyEvent -> IO ()) -> IO ()
+foreign import js "%1.addEventListener('keyup',%2,true)"
+  jsSetOnKeyUp :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
 
-setOnKeyDown (Int -> IO ()) -> IO ()
-setOnKeyDown fp = dp
+setOnKeyUp :: String -> (Int -> IO ()) -> IO ()
+setOnKeyUp elemName fp = do
   cb <- mkKeyEventCb fp'
-  jsSetOnKeyUp cb
+  el <- getElementById elemName
+  jsSetOnKeyUp el cb
   where
     fp' event = keyCode event >>= fp
 
 foreign import js "window.addEventListener('load', %1, 'false')"
   jsSetOnLoad :: FunPtr (IO ()) -> IO ()
 setOnLoad :: IO () -> IO ()
-setOnLoad fp = mkCb fp >>= setOnLoad_
+setOnLoad fp = mkCb fp >>= jsSetOnLoad
 
 foreign import js "setInterval(%1,%2)"
-  jsSetInterval :: FunPtr (IO ()) -> Int -> IO ()
-setInterval :: IO () -> Int -> IO ()
-setInterval fp time = mkCb fp >>= (jsSetInterval time)
+  jsSetInterval :: FunPtr (IO ()) -> Double -> IO ()
+setInterval :: Double -> IO () -> IO ()
+setInterval time fp = do
+  cb <- mkCb fp
+  jsSetInterval cb time
 ```
 
-Remember than the >>= operator chains monadic actions.
-setKey\[Down|Up\] define wrapper functions hat extract the keycode and passes it to our callback functions because that is the information we are really interested in.
+Remember that the >>= operator chains monadic actions. "getElementById" is a helper function that returns an element from the DOM identified by the name we provide.
+setOnKeyDown and setOnKeyUp set the event listener on an element defined by the given name. They define wrapper functions that extract the keycode and passes it to our callback functions. This is convenient because the keycode is the information we are really interested in.
 
 We will follow the convention, that functions taking javascript specific parameters (such as JSString) will be prefixed by "js" and have corresponding functions without the "js" prefix.
 
@@ -101,39 +108,36 @@ The arguments for the haskell callback are the second argument of "A()" and have
 
 ```javascript
 function jsSetInterval(msecs, cb, _) {
-	window.setInterval(function() {A(cb,[0]);}, msecs);
-	return [1,0];
+    window.setInterval(function() {A(cb,[0]);}, msecs);
+    return [1,0];
 }
 
-function jsSetOnKeyDown(cb, _) {
-	window.addEventListener('keydown', function(e) {A(cb,[[1,parseInt(e.keyCode)],0]);}, true);
-	return [1,0];
-}
-
-function jsSetOnKeyUp(cb, _) {
-	window.addEventListener('keyup', function(e) {A(cb,[[1,parseInt(e.keyCode)],0]);}, true);
-	return [1,0];
+function jsSetOnLoad(cb, _) {
+    window.addEventListener('load', function() {A(cb,[0]);}, false);
+    return [1,0];
 }
 ```
 
-As you can see, out versions jsSetOnKey\[Up|Down\] do not pass the key event itself but the extracted keycode. On the haskell callbacks have to be created with "mkCallback" and have the Type "Callback a".
+For setOnKeyUp and setOnKeyDown we do not need to define any haskell function, because we can set them using the haste library in haskell.
+On the haskell side callbacks have to be created with "mkCallback" and have the Type "Callback a".
 
 ```haskell
-foreign import ccall jsSetInterval :: Int -> Callback a -> IO ()
-setInterval :: Int -> IO () -> IO ()
+foreign import ccall jsSetInterval :: Double -> JSFun (IO ()) -> IO ()
+setInterval :: Double -> IO () -> IO ()
 setInterval time cb =
   jsSetInterval time (mkCallback $! cb)
 
-foreign import ccall jsSetOnKeyDown :: Callback a -> IO ()
-foreign import ccall jsSetOnKeyUp :: Callback a -> IO ()
+foreign import ccall jsSetOnLoad :: JSFun (IO ()) -> IO ()
+setOnLoad cb = jsSetOnLoad (mkCallback $! cb)
 
-setOnKeyDown :: (Int -> IO ()) -> IO ()
-setOnKeyDown cb =
-  jsSetOnKeyDown (mkCallback $! cb)
-setOnKeyUp :: (Int -> IO ()) -> IO ()
-setOnKeyUp cb =
-  jsSetOnKeyUp (mkCallback $! cb)
+setOnKeyDown :: String -> (Int -> IO ()) -> IO Bool
+setOnKeyDown elementName cb = withElem elementName $ \e -> setCallback e OnKeyDown cb
+
+setOnKeyUp :: String -> (Int -> IO ()) -> IO Bool
+setOnKeyUp elementName cb = withElem elementName $ \e -> setCallback e OnKeyUp cb
 ```
+
+The "withElem" functions is defined in the haste library and executes an action with a DOM element defined by the provided name.
 
 # Letting callbacks communicate
 
@@ -158,25 +162,25 @@ function loadObject(name) {
 And include them from haskell:
 
 ```haskell
-foreign import ccall jsSaveGlobalObject :: JSString -> Ptr a -> IO ()
-foreign import ccall jsLoadGlobalObject :: JSString -> IO (Ptr a)
+foreign import ccall jsSaveGlobalObject :: JSString -> a -> IO ()
+foreign import ccall jsLoadGlobalObject :: JSString -> IO a
 
 saveGlobalObject :: String -> a -> IO ()
-saveGlobalObject name obj = jsSaveGlobalObject (toJSStr name) (toPtr obj)
+saveGlobalObject name obj = jsSaveGlobalObject (toJS name) obj
 
 loadGlobalObject :: String -> IO a
 loadGlobalObject name = do
-  ptr <- jsLoadGlobalObject (toJSStr name)
-  return $ fromPtr ptr
+  ptr <- jsLoadGlobalObject (toJS name)
+  return $ ptr
 ```
 
 We can now load the current state with
 
 ```haskell
-state <- loadObject "state" :: IO State
+state <- loadGlobalObject "state" :: IO State
 ```
 
-when we enter one of our callback functions and save it with a corresponing call to "saveObject".
+When we enter one of our callback functions and save it with a corresponding call to "saveGlobalObject".
 
 ## Haste
 
@@ -212,7 +216,7 @@ loadGlobalObject name = do
 
 # Drawing on the canvas
 
-Example code for drawing on the canvas in javascript looks like this:</div>
+Example code for drawing on the canvas in javascript looks like this:
 
 ```javascript
 context = document.getElementById("canvas").getContext("2d");<br />
@@ -227,40 +231,43 @@ Basically all we have to do is import these functions via the FFI.
 
 Getting the context needs several steps:
 
-* Get the document
 * Get the canvas via getElementById
 * Get the context via getContext
 
 So this is what we do:
 
 ```haskell
-data Document
 data Context2D
-data Canvas
-
-foreign import js "document"
-    document :: IO Document
-foreign import js "%1.getElementById(%2)"
-    jsGetElementById :: Document -> JSString -> IO Canvas
-getElementById doc = jsGetElementById doc . toJS
 foreign import js "%1.getContext('2d')"
-    getContext2dFromCanvas :: Canvas -> IO Context2D
+    getContext2dFromCanvas :: Element -> IO Context2D
 
 getContext2d :: String -> IO Context2D
 getContext2d canvasName = do
-  d <- document
-  c <- getElementById d canvasName
-  getContext2dFromCanvas
+  c <- getElementById canvasName
+  getContext2dFromCanvas c
 ```
 
-Importing the rest of the functions is straight forward:</div>
+Importing the rest of the functions is straight forward:
 
 ```haskell
 foreign import js "%1.fillRect(%*)"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
 foreign import js "%1.setFillColor(%*)"
-  setFillColor :: Context2D -> Double -> Double -> Double -> Double -> IO ()
+  jsSetFillColor :: Context2D -> JSString -> IO ()
+setFillColor ctx = jsSetFillColor ctx . toJS
+foreign import js "%1.clearRect(%2, %3, %4, %5)"
+  clearRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
+
+foreign import js "%1.canvas.width" canvasWidth :: Context2D -> IO Double
+foreign import js "%1.canvas.height" canvasHeight :: Context2D -> IO Double
+clear :: Context2D -> IO ()
+clear ctx = do
+  w <- canvasWidth ctx
+  h <- canvasHeight ctx
+  clearRect ctx 0.0 0.0 w h
 ```
+
+We have defined "clear" for convenience. It clears the whole canvas.
 
 ## Haste
 
@@ -287,7 +294,7 @@ function jsClear(context, _) {
 }
 ```
 
-And here the haskell part:</div>
+And here the haskell part:
 
 ```haskell
 import Haste.Prim
@@ -306,11 +313,54 @@ foreign import ccall "jsClear"
   clear :: Context2D -> IO ()
 ```
 
-Here we use the "withElem" function from Haskell.DOM which executes an action with the element specified by the provided name.
+Again we use "withElem" function from Haskell.DOM which executes an action with the element specified by the provided name.
 
 # Putting it all together
 
 All imported functions are named, so that the main code is the same for UHC and haste. The folloging code should explain itself through the comments:
+
+```{.haskell .numberlines}
+module Main where
+
+import JavaScript
+
+canvasName = "canvas1"
+
+playerY = 380.0
+playerWidth = 60.0
+playerHeight = 20.0
+playerSpeed = 3.0
+playerColor = "green"
+
+data State = State {x :: Double}
+initState = State 300.0
+
+main = setOnLoad initilize
+
+initilize :: IO ()
+initilize = do
+  saveGlobalObject "state" initState
+  setInterval 30.0 update
+  setOnKeyDown canvasName onKeyDown
+  return ()
+
+onKeyDown :: Int -> IO ()
+onKeyDown code = do
+  s <-  loadGlobalObject "state" :: IO State
+  let s' = case code of
+         39 ->  s {x = (x s) + playerSpeed}
+         37 ->  s {x = (x s) - playerSpeed} 
+         _  ->  s
+  saveGlobalObject "state" s'
+
+update :: IO ()
+update = do
+  s <-  loadGlobalObject "state" :: IO State
+  ctx <- getContext2d canvasName
+  clear    ctx
+  setFillColor ctx playerColor
+  fillRect ctx (x s) playerY playerWidth playerHeight
+```
 
 To compile it with UHC, you need JavaScript.hs und helpers.js. Than run
 
@@ -318,7 +368,7 @@ To compile it with UHC, you need JavaScript.hs und helpers.js. Than run
 uhc -tjs Main.hs
 ```
 
-Edit the resulting html page and add
+Edit the resulting HTML page and add
 
 ```html
 <script type="text/javascript" src="helpers.js"></script>
@@ -326,8 +376,8 @@ Edit the resulting html page and add
 
 into the head and
 
-```
-<canvas id="canvas1" width=600 height=500></canvas>
+```html
+<canvas id="canvas1" width=600 height=500 tabindex="0"></canvas>
 ```
 
 to the body.
@@ -335,10 +385,22 @@ to the body.
 For haste you need this JavaScript.hs und helpers.js and compile it with:
 
 ```bash
-hastec --with-js=helpers.js Main.hs</div>
+hastec --with-js=helpers.js Main.hs --start=asap
 ```
 
-Than embed it in this html page:
+The "--start=asap" parameter is necessary because we set the onLoad function ourself. Than embed it in this HTML page:
+
+```html
+<!DOCTYPE html><html><head><title>Main</title>
+		<script type="text/javascript" src="Main.js"></script>
+	</head>
+	<body>
+		<canvas id="canvas1" height="400" width="600" tabindex="0">Your browser des not support canvas</canvas>
+	</body>
+</html>
+```
+
+The running example can be seen at the beginning of this post.
 
 ## Summary
 
