@@ -28,7 +28,7 @@ function jsFillRect(context, x, y, width, height, _) {
 }
 
 function jsSetFillColor(context, color, _) {
-	context.setFillColor(color);
+	context.fillStyle = color;
 	return [1,0];
 }
 

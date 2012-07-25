@@ -26,7 +26,7 @@ getContext2d canvasName = do
 
 foreign import js "%1.fillRect(%*)"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
-foreign import js "%1.setFillColor(%*)"
+foreign import js "jsSetFillColor(%*)"
   jsSetFillColor :: Context2D -> JSString -> IO ()
 setFillColor ctx = jsSetFillColor ctx . toJS
 foreign import js "%1.clearRect(%2, %3, %4, %5)"
