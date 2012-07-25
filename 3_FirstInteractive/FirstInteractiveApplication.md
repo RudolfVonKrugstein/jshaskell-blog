@@ -3,9 +3,11 @@ In the [last Post](http://jshaskell.blogspot.de/2012/07/hello-world.html) we wro
 We now want to do something more game like. Out goal over the next few post will be to write a breackout clone in haskell, running in the browser!
 But first there are still a few things we need. To explore this we will write a little application displaying the paddle that can be moved with the arrow keys. Here is a preview (you have to click on it so that it gains focus):
 
-<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/cf545c8d00373b2e8507ef1ba0a7242bdc1d7fa8/3_FirstInteractive/code/compiled/Main.js" type="text/javascript">
+<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/3_FirstInteractive/code/compiled/Main.js" type="text/javascript">
 </script>
 <canvas height="400" id="canvas1" style="background-color: white;" width="600" tabindex="0"></canvas>
+
+**Update:** This should now also work in firefox.
 
 For this we need to learn how to:
 
@@ -220,7 +222,7 @@ Example code for drawing on the canvas in javascript looks like this:
 ```javascript
 context = document.getElementById("canvas").getContext("2d");
 context.clearRect(0.0, 0.0, context.canvas.width, context.canvas.height)
-context.setFillColor(0.0, 1.0, 0.0, 1.0);
+context.setFillColor("green");
 context.fillRect(10.0,10.0,100.0,100.0);
 ```
 
@@ -251,7 +253,7 @@ Importing the rest of the functions is straight forward:
 ```haskell
 foreign import js "%1.fillRect(%*)"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
-foreign import js "%1.setFillColor(%*)"
+foreign import js "jsSetFillColor(%*)"
   jsSetFillColor :: Context2D -> JSString -> IO ()
 setFillColor ctx = jsSetFillColor ctx . toJS
 foreign import js "%1.clearRect(%2, %3, %4, %5)"
@@ -268,6 +270,15 @@ clear ctx = do
 
 We have defined "clear" for convenience. It clears the whole canvas.
 
+** Note: ** For some reason, "context.setFillColor" does not work on firefox. Therefor a helper function is defined setting the color via fillStyle.
+
+```JavaScript
+function jsSetFillColor(context, color) {
+	context.fillStyle = color;
+}
+```
+
+
 ## Haste
 
 Again, for haste we have to write javascript functions with the correct return type:
@@ -283,7 +294,7 @@ function jsFillRect(context, x, y, width, height, _) {
 }
 
 function jsSetFillColor(context, color, _) {
- context.setFillColor(color);
+ context.fillStyle = color;
  return [1,0];
 }
 
