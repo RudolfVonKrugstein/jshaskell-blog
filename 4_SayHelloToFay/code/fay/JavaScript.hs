@@ -2,6 +2,7 @@ module JavaScript where
 
 import Language.Fay.FFI
 import Language.Fay.Prelude
+import Prelude (Bool,String,Double,Char,error)
 
 
 data JSKeyEvent
@@ -9,16 +10,24 @@ data Document
 data Element
 data Context2D
 
+instance Foreign JSKeyEvent
+instance Foreign Document
+instance Foreign Element
+instance Foreign Context2D
+
 alert :: String -> Fay ()
 alert = foreignFay "window.alert" ""
 
 document :: Fay Document
-document = foreignDay "document"
+document = foreignFay "document" ""
+
+window :: Fay Element
+window = foreignFay "window" ""
 
 getElementById :: String -> Fay Element
 getElementById = foreignFay "document.getElementById" ""
 
-getContext2dFromCanvas :: Element -> Fay Conext2D
+getContext2dFromCanvas :: Element -> Fay Context2D
 getContext2dFromCanvas e = foreignMethodFay "getContext" "" e "2d"
 
 getContext2d :: String -> Fay Context2D
@@ -27,68 +36,63 @@ getContext2d canvasName = do
   getContext2dFromCanvas c
 
 fillRect :: Context2D -> Double -> Double -> Double -> Double -> Fay ()
-fillRet = foreignMethodFay "fillRect" ""
+fillRect = foreignMethodFay "fillRect" ""
 
 setFillColor :: Context2D -> String -> Fay ()
 setFillColor = foreignMethodFay "setFillColor" ""
 
 clearRect :: Context2D -> Double -> Double -> Double -> Double -> Fay ()
-clearRect = foreignMathodFay "clearRect" ""
+clearRect = foreignMethodFay "clearRect" ""
 
---- done till here
+canvasWidth :: Context2D -> Fay Double
+canvasWidth = foreignFay "jsCanvasWidth" ""
 
-foreign import js "%1.canvas.width" canvasWidth :: Context2D -> IO Double
-foreign import js "%1.canvas.height" canvasHeight :: Context2D -> IO Double
-clear :: Context2D -> IO ()
+canvasHeight :: Context2D -> Fay Double
+canvasHeight = foreignFay "jsCanvasWidth" ""
+
+clear :: Context2D -> Fay ()
 clear ctx = do
   w <- canvasWidth ctx
   h <- canvasHeight ctx
   clearRect ctx 0.0 0.0 w h
 
-foreign import js "%1.keyCode"
-  keyCode :: JSKeyEvent -> IO Int
+keyCode :: JSKeyEvent -> Fay Double
+keyCode = foreignFay "jsKeyCode" ""
 
+addEventListener :: Element -> String -> Fay () -> Bool -> Fay ()
+addEventListener =
+    foreignMethodFay "addEventListener" ""
 
-foreign import js "%1.addEventListener('keydown',%2,true)"
-  jsSetOnKeyDown :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
-setOnKeyDown :: String -> (Int -> IO ()) -> IO ()
-setOnKeyDown elemName fp = do
-  cb <- mkKeyEventCb fp'
+-- We need another because the callback signature is different
+addKeyEventListener :: Element -> String -> (JSKeyEvent -> Fay ()) -> Bool -> Fay ()
+addKeyEventListener =
+    foreignMethodFay "addEventListener" ""
+
+setOnKeyDown :: String -> (Double -> Fay ()) -> Fay ()
+setOnKeyDown elemName fp = do 
   el <- getElementById elemName
-  jsSetOnKeyDown el cb
+  addKeyEventListener el "keydown" fp' False
   where
     fp' event = keyCode event >>= fp
 
-foreign import js "%1.addEventListener('keyup',%2,true)"
-  jsSetOnKeyUp :: Element -> FunPtr (JSKeyEvent -> IO ()) -> IO ()
-
-setOnKeyUp :: String -> (Int -> IO ()) -> IO ()
-setOnKeyUp elemName fp = do
-  cb <- mkKeyEventCb fp'
+setOnKeyUp :: String -> (Double -> Fay ()) -> Fay ()
+setOnKeyUp elemName fp = do 
   el <- getElementById elemName
-  jsSetOnKeyUp el cb
+  addKeyEventListener el "keyup" fp' False
   where
     fp' event = keyCode event >>= fp
 
-foreign import js "window.addEventListener('load', %1, 'false')"
-  jsSetOnLoad :: FunPtr (IO ()) -> IO ()
-setOnLoad :: IO () -> IO ()
-setOnLoad fp = mkCb fp >>= jsSetOnLoad
+setOnLoad :: Fay () -> Fay ()
+setOnLoad fp = do
+  el <- window
+  addEventListener el "load" fp False
 
-foreign import js "setInterval(%1,%2)"
-  jsSetInterval :: FunPtr (IO ()) -> Double -> IO ()
-setInterval :: Double -> IO () -> IO ()
-setInterval time fp = do
-  cb <- mkCb fp
-  jsSetInterval cb time
+setInterval :: Fay () -> Double -> Fay () 
+setInterval = foreignFay "window.setInterval" ""
 
-foreign import ccall jsSaveGlobalObject :: JSString -> a -> IO ()
-foreign import ccall jsLoadGlobalObject :: JSString -> IO a
+saveGlobalObject :: String -> a -> Fay ()
+saveGlobalObject = foreignFay "jsSaveGlobalObject" ""
 
-saveGlobalObject :: String -> a -> IO ()
-saveGlobalObject name obj = jsSaveGlobalObject (toJS name) obj
+loadGlobalObject :: String -> Fay a
+loadGlobalObject = foreignFay "jsLoadGlobalObject" ""
 
-loadGlobalObject :: String -> IO a
-loadGlobalObject name = do
-  ptr <- jsLoadGlobalObject (toJS name)
-  return $ ptr
