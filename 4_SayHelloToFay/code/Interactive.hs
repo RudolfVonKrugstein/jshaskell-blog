@@ -1,6 +1,9 @@
 module Interactive where
 
 import JavaScript
+import Language.Fay.FFI
+import Language.Fay.Prelude
+import Prelude (Bool,String,Double,Char,error)
 
 canvasName = "canvas1"
 
@@ -11,6 +14,7 @@ playerSpeed = 3.0
 playerColor = "green"
 
 data State = State {x :: Double}
+instance Foreign State
 initState = State 300.0
 
 main = setOnLoad initilize
@@ -18,7 +22,7 @@ main = setOnLoad initilize
 initilize :: Fay ()
 initilize = do
   saveGlobalObject "state" initState
-  setInterval 30.0 update
+  setInterval update 30.0
   setOnKeyDown canvasName onKeyDown
   return ()
 

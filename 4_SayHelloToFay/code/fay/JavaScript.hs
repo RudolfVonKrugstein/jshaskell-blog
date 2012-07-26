@@ -90,9 +90,9 @@ setOnLoad fp = do
 setInterval :: Fay () -> Double -> Fay () 
 setInterval = foreignFay "window.setInterval" ""
 
-saveGlobalObject :: String -> a -> Fay ()
+saveGlobalObject :: Foreign a => String -> a -> Fay ()
 saveGlobalObject = foreignFay "jsSaveGlobalObject" ""
 
-loadGlobalObject :: String -> Fay a
+loadGlobalObject :: Foreign a => String -> Fay a
 loadGlobalObject = foreignFay "jsLoadGlobalObject" ""
 
