@@ -71,16 +71,12 @@ addKeyEventListener =
 setOnKeyDown :: String -> (Double -> Fay ()) -> Fay ()
 setOnKeyDown elemName fp = do 
   el <- getElementById elemName
-  addKeyEventListener el "keydown" fp' False
-  where
-    fp' event = keyCode event >>= fp
+  addKeyEventListener el "keydown" (\e -> keyCode e >>= fp) False
 
 setOnKeyUp :: String -> (Double -> Fay ()) -> Fay ()
 setOnKeyUp elemName fp = do 
   el <- getElementById elemName
-  addKeyEventListener el "keyup" fp' False
-  where
-    fp' event = keyCode event >>= fp
+  addKeyEventListener el "keyup" (\e -> keyCode e >>= fp) False
 
 setOnLoad :: Fay () -> Fay ()
 setOnLoad fp = do

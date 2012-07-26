@@ -29,11 +29,10 @@ initilize = do
 onKeyDown :: Double -> Fay ()
 onKeyDown code = do
   s <-  loadGlobalObject "state" :: Fay State
-  let s' = case code of
-         39 ->  s {x = (x s) + playerSpeed}
-         37 ->  s {x = (x s) - playerSpeed} 
-         _  ->  s
-  saveGlobalObject "state" s'
+  saveGlobalObject "state" $ case code of
+                               39 -> s {x = (x s) + playerSpeed}
+                               37 -> s {x = (x s) - playerSpeed}
+                               _  -> s
 
 update :: Fay ()
 update = do
