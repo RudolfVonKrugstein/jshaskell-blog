@@ -41,10 +41,10 @@ draw gs = do
   clear ctx
   -- draw player
   setFillColor ctx playerColor
-  fillRect ctx (xPos . playerState gs) playerYPos playerWidth playerHeight
+  fillRect ctx (xPos . player gs) playerYPos playerWidth playerHeight
   --draw ball
   setFillColor ctx ballColor
-  let (x,y) = pos . ballState gs
+  let (x,y) = pos . ball gs
   fillCircle ctx x y ballRadius
 
 -- update function
@@ -63,8 +63,8 @@ type Vector = (Double, Double)
 data PlayerState = PlayerState {xPos :: Double}
 data BallState = BallState {pos :: Vector}
 
-data GameState = GameState {playerState :: PlayerState,
-                            ballState :: BallState}
+data GameState = GameState {player :: PlayerState,
+                            ball :: BallState}
 -- game values
 screenWidth = 600.0
 screenHeight = 400.0
@@ -118,4 +118,8 @@ ballPlayerCollisions playerState ballState =
   if rectOverlap (playerRect playerState) (ballRect blallState)
   then ballRectCollisions ballState (playerRect playerState)
   else []
+
+ballState :: Coroutine (Event BallCollisions) BallState
+ballState = proc collEvents -> do
+  
 
