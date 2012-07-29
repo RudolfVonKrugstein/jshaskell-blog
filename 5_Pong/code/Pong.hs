@@ -2,8 +2,37 @@
 
 module Main where
 
-import JavaScript
+import JavaScript hiding (Event)
 import Coroutine
+import Data.IORef
+import Control.Arrow
+
+-- technical data
+data Input = KeyUp Double | KeyDown Double
+
+-- entry point
+main = setOnLoad initilize
+
+initilize = do
+  state <- newIORef mainCoroutine
+  input <- newIORef ([] :: [Input])
+  setOnKeyDown (onKeyDown input)
+  setOnKeyUp   (onKeyUp input)
+  setInterval 20.0 (update state input)
+
+-- input
+onKeyDown :: IORef [Input] -> Double-> IO ()
+onKeyDown input keyCode = do
+  i <- readIORef input
+  let i' = input ++ [KeyDown keyCode]
+  writeIORef input i'
+
+onKeyUp :: IORef [Input] -> Double-> IO ()
+onKeyUp input keyCode = do
+  i <- readIORef input
+  let i' = input ++ [KeyUp keyCode]
+  writeIORef input i'
+  
 
 -- draw a gamestate
 draw :: GameState -> IO ()
@@ -19,13 +48,14 @@ draw gs = do
   fillCircle ctx x y ballRadius
 
 -- update function
-update :: IO ()
-update = do
-  co <- loadGlobalObject "gameCoroutine" :: MainCoroutineType
-  input <- loadInputEvents
+update :: IORef MainCoroutineType -> IORef (Event Input) -> IO ()
+update state input = do
+  co <- readIORef state
+  input <- readIORef input
+  writeIORef input []
   let (co', gs) = runC co input
   draw gs
-  saveGlobalState "gameCoroutine"
+  writeIORef co'
 
 -- Game data
 type Vector = (Double, Double)
@@ -62,7 +92,7 @@ mainCoroutine = proc inEvents -> do
     blWlColls <- ballWallCollisions -< oldBlState
     blPlColls <- ballPlayerCollisions -< (plState, oldBlState)
     blState <- ballState -< (blPlColls ++ blWlColls)
-    olBlState <- delay initBallState -< blState
+    oldBlState <- delay initBallState -< blState
   returnA -< GameState plState blState
 
 playerState :: Coroutine (Event Input) PlayerState
@@ -75,7 +105,7 @@ playerVelocity :: Coroutine (Event Input) Double
 playerVelocity = proc inEvents -> do
   leftDown <- keyDown leftKeyCode -< inEvents
   rightDown <- keyDown rightKeyCode -< inEvents
-  return -< if leftDown then -playerSpeed else (if rightDown then playerSpeed else 0.0)
+  returnA -< if leftDown then -playerSpeed else (if rightDown then playerSpeed else 0.0)
 
 ballWallCollisions :: BallState -> (Event BallCollisions)
 ballWallCollisions (bx,by) =
