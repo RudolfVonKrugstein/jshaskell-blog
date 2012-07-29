@@ -2,6 +2,7 @@ module JavaScript(
   module Haste,
   getContext2d,
   fillRect,
+  fillCircle,
   setFillColor,
   clear,
   setInterval,
@@ -27,17 +28,17 @@ getContext2d name = withElem name getContext2dFromCanvas
 foreign import ccall "jsFillRect"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
 
-foreign import ccall "jsBeginPath beginPath :: Context2D -> IO ()
-foreign import ccall "jsClosePath closePath :: Context2D -> IO ()
-foreign import ccall "jsFill fill :: Context2D -> IO ()
-foreign import ccall "jsArc" arc Context2D -> Double -> Double -> Double -> Double -> Double -> Bool -> IO ()
+foreign import ccall "jsBeginPath" beginPath :: Context2D -> IO ()
+foreign import ccall "jsClosePath" closePath :: Context2D -> IO ()
+foreign import ccall "jsFill" fill :: Context2D -> IO ()
+foreign import ccall "jsArc" arc :: Context2D -> Double -> Double -> Double -> Double -> Double -> Bool -> IO ()
 
 fillCircle :: Context2D -> Double -> Double -> Double -> IO ()
 fillCircle ctx x y r = do
   beginPath ctx
-  arc x y r 0.0 (2.0 * pi) True
-  closePath
-  fill
+  arc ctx x y r 0.0 (2.0 * pi) True
+  closePath ctx
+  fill ctx
 
 foreign import ccall jsSetFillColor :: Context2D -> JSString -> IO ()
 setFillColor ctx = jsSetFillColor ctx . toJSStr

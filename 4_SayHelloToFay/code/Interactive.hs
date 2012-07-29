@@ -17,26 +17,28 @@ data State = State {x :: Double}
 instance Foreign State
 initState = State 300.0
 
-main = setOnLoad initilize
+main :: Fay ()
+main = do
+  setOnLoad initilize
 
 initilize :: Fay ()
 initilize = do
-  saveGlobalObject "state" initState
-  setInterval update 30.0
-  setOnKeyDown canvasName onKeyDown
+  state <- newRef initState
+  setInterval (update state) 30.0
+  setOnKeyDown canvasName (onKeyDown state)
   return ()
 
-onKeyDown :: Double -> Fay ()
-onKeyDown code = do
-  s <-  loadGlobalObject "state" :: Fay State
-  saveGlobalObject "state" $ case code of
-                               39 -> s {x = (x s) + playerSpeed}
-                               37 -> s {x = (x s) - playerSpeed}
-                               _  -> s
+onKeyDown :: Ref State -> Double -> Fay ()
+onKeyDown state code = do
+  s <- readRef state
+  writeRef state $ case code of
+                    39 -> State $ (x s) + playerSpeed
+                    37 -> State $ (x s) - playerSpeed
+                    _  -> s
 
-update :: Fay ()
-update = do
-  s <-  loadGlobalObject "state" :: Fay State
+update :: Ref State -> Fay ()
+update state = do
+  s <-  readRef state
   ctx <- getContext2d canvasName
   clear    ctx
   setFillColor ctx playerColor

@@ -1,4 +1,9 @@
+{-# LANGUAGE Arrows #-}
+
 module Main where
+
+import JavaScript
+import Coroutine
 
 -- draw a gamestate
 draw :: GameState -> IO ()
@@ -61,7 +66,7 @@ mainCoroutine = proc inEvents -> do
   returnA -< GameState plState blState
 
 playerState :: Coroutine (Event Input) PlayerState
-playerState  proc inEvents -> do
+playerState = proc inEvents -> do
   vel <- playerVelocity -< inEvents
   xPos <- integrate (xPos initPlayerXPos)  -< vel
   returnA -< PlayerState xPos
@@ -70,17 +75,17 @@ playerVelocity :: Coroutine (Event Input) Double
 playerVelocity = proc inEvents -> do
   leftDown <- keyDown leftKeyCode -< inEvents
   rightDown <- keyDown rightKeyCode -< inEvents
-  return -< if leftDown then -playerSpeed else (if rightDown playerSpeed else 0.0)
+  return -< if leftDown then -playerSpeed else (if rightDown then playerSpeed else 0.0)
 
-ballWallCollisions :: Coroutine BallState (Event BallCollisions)
-ballWallCollisions = proc (BallState (bx,by)) -> do
-  leftColl  <- watch (< ballRadius) >>> constE LeftBounce                -< by
-  rightColl <- watch (> screenWidth - ballRadius) >>> constE RightBounce -< by
-  upColl   <- watch (> ballRadius) >>> constE UpBounce                   -< bx
-  returnA -< leftColl ++ rightColl ++ upColl
-  
+ballWallCollisions :: BallState -> (Event BallCollisions)
+ballWallCollisions (bx,by) =
+  nap snd . filter fst . [(by < ballRadius,                LeftBounce),
+                          (by > screenWidth - ballRadius,  RightBounce),
+                          (bx > screenHeight - ballRadius, UpBounce)]
 
-ballPlayerCollisions :: Coroutine (PlayerState, BallState) (Event BallCollision)
-ballPlayerCollisions = proc (plState, blState) -> do
-  returnA -< if rectOverlap (playerRect plState) (ballRect blState) then
+ballPlayerCollisions :: PlayerState -> BallState -> (Event BallCollision)
+ballPlayerCollisions playerState ballState =
+  if rectOverlap (playerRect playerState) (ballRect blallState)
+  then ballRectCollisions ballState (playerRect playerState)
+  else []
 

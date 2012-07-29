@@ -4,6 +4,8 @@ import Prelude hiding (id, (.))
 
 import Control.Arrow
 import Control.Category
+import Control.Applicative
+import Data.List
 
 newtype Coroutine i o = Coroutine { runC :: i -> (o, Coroutine i o) }
 
@@ -89,3 +91,7 @@ watch f = Coroutine $ \i ->
     if f i
         then ([i], watch f)
         else ([], watch f)
+
+scan :: (a -> b -> a) -> a -> Coroutine b a
+scan f i = Coroutine $ step i where
+    step a b = let a' = f a b in (a', scan f a')
