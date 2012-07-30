@@ -98,7 +98,7 @@ mainCoroutine = proc inEvents -> do
 playerState :: Coroutine (Event Input) PlayerState
 playerState = proc inEvents -> do
   vel <- playerVelocity -< inEvents
-  xPos <- integrate (xPos initPlayerXPos)  -< vel
+  xPos <- integrate (xPos initPlayerState)  -< vel
   returnA -< PlayerState xPos
 
 playerVelocity :: Coroutine (Event Input) Double
@@ -121,5 +121,16 @@ ballPlayerCollisions playerState ballState =
 
 ballState :: Coroutine (Event BallCollisions) BallState
 ballState = proc collEvents -> do
+  vel <- ballVelocity -< collEvents
+  	
   
+-- helper functions
+keyDown :: Double -> Coroutine (Event Input) Bool
+keyDown code = scanE step False 
+  where
+  step input old
+    | input == KeyUp code   = False
+    | input == KeyDown code = True
+    | otherwise             = old
+                   if input == 
 
