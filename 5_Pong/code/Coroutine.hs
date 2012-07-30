@@ -38,6 +38,11 @@ instance Arrow Coroutine where
         let (c, co') = runC co a
         in ((c,b), first co')
 
+instance ArrowLoop Coroutine where
+    loop co = Coroutine $ \b ->
+        let ((c,d),co') = runC co (b,d)
+        in (c, loop co')
+
 -- Events
 type Event a = [a]
 
