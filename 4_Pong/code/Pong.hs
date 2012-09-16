@@ -93,6 +93,28 @@ update state input = do
   draw gs
   writeIORef state co'
 
+-- helper functions
+keyDown :: Int -> Coroutine (Event Input) Bool
+keyDown code = scanE step False 
+  where
+  step old input
+    | input == KeyUp code   = False
+    | input == KeyDown code = True
+    | otherwise             = old
+
+rectOverlap :: Rect -> Rect -> Bool
+rectOverlap r1 r2
+  | x r1 >= x r2 + width r2 = False
+  | x r2 >= x r1 + width r1 = False
+  | y r1 >= y r2 + height r2 = False
+  | y r2 >= y r1 + height r1 = False
+  | otherwise                = True
+
+playerRect :: PlayerState -> Rect
+playerRect (PlayerState px) = Rect px playerYPos playerWidth playerHeight
+
+ballRect :: BallState -> Rect
+ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
 
 -- Game logic
 type MainCoroutineType = Coroutine (Event Input) GameState
@@ -155,26 +177,3 @@ ballVelocity = scanE bounce initBallSpeed
   
   	
   
--- helper functions
-keyDown :: Int -> Coroutine (Event Input) Bool
-keyDown code = scanE step False 
-  where
-  step old input
-    | input == KeyUp code   = False
-    | input == KeyDown code = True
-    | otherwise             = old
-
-rectOverlap :: Rect -> Rect -> Bool
-rectOverlap r1 r2
-  | x r1 >= x r2 + width r2 = False
-  | x r2 >= x r1 + width r1 = False
-  | y r1 >= y r2 + height r2 = False
-  | y r2 >= y r1 + height r1 = False
-  | otherwise                = True
-
-playerRect :: PlayerState -> Rect
-playerRect (PlayerState px) = Rect px playerYPos playerWidth playerHeight
-
-ballRect :: BallState -> Rect
-ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
-
