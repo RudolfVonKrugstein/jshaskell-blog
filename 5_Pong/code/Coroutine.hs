@@ -85,6 +85,9 @@ delay a = withPrevious a >>> arr snd
 integrate :: Num a => a -> Coroutine a a
 integrate = scan (+)
 
+boundedIntegrate :: (Num a, Ord a) => (a,a) -> a -> Coroutine a a
+boundedIntegrate (minV, maxV) = scan (\a b -> min maxV $ max minV $ (a+b))
+
 -- | Derivate a numerical value over time (i.e. return the delta between current
 --   and previous time-step.
 derivate :: Num a => Coroutine a a

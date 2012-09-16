@@ -73,23 +73,23 @@ data GameState = GameState {player :: PlayerState,
                             ball :: BallState}
 
 data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
-data Rect = Rect { x::Double, y::Double, height::Double, width::Double}
+data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
 -- game values
 screenWidth = 600.0
 screenHeight = 400.0
 playerColor = "black"
 ballColor = "red"
-playerYPos = screenWidth - playerHeight
+playerYPos = screenHeight - playerHeight
 playerHeight = 15.0
 playerWidth = 40.0
 ballRadius = 5.0
 
 initBallState = BallState ((screenWidth / 2.0), (screenHeight - 50.0))
-initBallSpeed = (1.0, -1.0)
+initBallSpeed = (3.0, -3.0)
 
 initPlayerState = PlayerState ((screenWidth - playerWidth) / 2.0)
 
-playerSpeed = 1.0 --the speed with which the player moves
+playerSpeed = 5.0 --the speed with which the player moves
 
 leftKeyCode = 37
 rightKeyCode = 39
@@ -109,7 +109,7 @@ mainCoroutine = proc inEvents -> do
 playerState :: Coroutine (Event Input) PlayerState
 playerState = proc inEvents -> do
   vel <- playerVelocity -< inEvents
-  xPos <- integrate (xPos initPlayerState)  -< vel
+  xPos <- boundedIntegrate (0.0,screenWidth-playerWidth) (xPos initPlayerState)  -< vel
   returnA -< PlayerState xPos
 
 playerVelocity :: Coroutine (Event Input) Double
@@ -122,7 +122,7 @@ ballWallCollisions :: BallState -> (Event BallCollision)
 ballWallCollisions (BallState (bx,by)) =
   map snd . filter fst $ [(bx < ballRadius,                LeftBounce),
                           (bx > screenWidth - ballRadius,  RightBounce),
-                          (by > screenHeight - ballRadius, UpBounce)]
+                          (by < ballRadius, UpBounce)]
 
 ballRectCollisions :: BallState -> Rect -> (Event BallCollision)
 ballRectCollisions (BallState (bx, by)) (Rect rx ry rw rh) =
