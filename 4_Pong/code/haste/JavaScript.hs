@@ -14,7 +14,7 @@ module JavaScript(
 )
  where
 
-import Haste
+import Haste hiding (Event)
 import Haste.Prim
 import Haste.DOM
 
