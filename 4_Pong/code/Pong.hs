@@ -2,17 +2,47 @@
 
 module Main where
 
-import JavaScript hiding (Event)
+import JavaScript
 import Coroutine
 import Data.IORef
 import Control.Arrow
+
 import Data.VectorSpace
 
--- technical data
+-- input data
 data Input = KeyUp Int | KeyDown Int deriving (Eq)
 
-type Vector2D = (Double, Double)
+-- Game data
+type Vector = (Double, Double)
 
+data PlayerState = PlayerState {xPos :: Double}
+data BallState = BallState {pos :: Vector2D}
+
+data GameState = GameState {player :: PlayerState,
+                            ball :: BallState}
+
+data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
+data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
+-- game values
+screenWidth = 600.0
+screenHeight = 400.0
+playerColor = "black"
+ballColor = "red"
+playerYPos = screenHeight - playerHeight
+playerHeight = 15.0
+playerWidth = 40.0
+ballRadius = 5.0
+
+initBallState = BallState ((screenWidth / 2.0), (screenHeight - 50.0))
+initBallSpeed = (3.0, -3.0)
+
+initPlayerState = PlayerState ((screenWidth - playerWidth) / 2.0)
+
+playerSpeed = 5.0 --the speed with which the player moves
+
+-- technical values
+leftKeyCode = 37
+rightKeyCode = 39
 canvasName = "canvas2"
 
 -- entry point
@@ -63,36 +93,6 @@ update state input = do
   draw gs
   writeIORef state co'
 
--- Game data
-type Vector = (Double, Double)
-
-data PlayerState = PlayerState {xPos :: Double}
-data BallState = BallState {pos :: Vector2D}
-
-data GameState = GameState {player :: PlayerState,
-                            ball :: BallState}
-
-data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
-data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
--- game values
-screenWidth = 600.0
-screenHeight = 400.0
-playerColor = "black"
-ballColor = "red"
-playerYPos = screenHeight - playerHeight
-playerHeight = 15.0
-playerWidth = 40.0
-ballRadius = 5.0
-
-initBallState = BallState ((screenWidth / 2.0), (screenHeight - 50.0))
-initBallSpeed = (3.0, -3.0)
-
-initPlayerState = PlayerState ((screenWidth - playerWidth) / 2.0)
-
-playerSpeed = 5.0 --the speed with which the player moves
-
-leftKeyCode = 37
-rightKeyCode = 39
 
 -- Game logic
 type MainCoroutineType = Coroutine (Event Input) GameState
