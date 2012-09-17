@@ -26,6 +26,19 @@ getContext2d canvasName = do
 
 foreign import js "%1.fillRect(%*)"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
+
+foreign import js "%1.beginPath()" beginPath :: Context2D -> IO ()
+foreign import js "%1.closePath()" closePath :: Context2D -> IO ()
+foreign import js "%1.fill()"      fill      :: Context2D -> IO ()
+foreign import js "%1.arc(%*)"     arc       :: Context2D -> Double -> Double -> Double -> Double -> Double -> Bool -> IO ()
+
+fillCircle :: Context2D -> Double -> Double -> Double -> IO ()
+fillCircle ctx x y r = do
+  beginPath ctx
+  arc ctx x y r 0.0 (2.0 * pi) True
+  closePath ctx
+  fill ctx
+
 foreign import js "%1.setFillColor(%*)"
   jsSetFillColor :: Context2D -> JSString -> IO ()
 setFillColor ctx = jsSetFillColor ctx . toJS
