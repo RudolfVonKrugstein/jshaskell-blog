@@ -4,6 +4,8 @@ In this next step we will add ball (a moving circle) that can bounce of the padd
 
 Here is a preview (again, click on the canvas to get input focus). If you are not viewing this blog article on blogspot and the application does not work, try the original [article page][this].
 
+** Note: ** This currently only works if you are viewing this article only (not in the flow of the complete blog). I am working on the problem ...
+
 <script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/4_Pong/code/compiled/Pong.js" type="text/javascript"></script>
 <canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
 
