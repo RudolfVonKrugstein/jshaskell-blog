@@ -7,7 +7,7 @@ Here is a preview (again, click on the canvas to get input focus).
 <script src="" type="text/javascript"></script>
 <canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
 
-But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming](https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md).
+But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming](https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md). I take the terminus "coroutine" from that blog entry. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.
 So make sure you read and understand that blog entry. The resulting code can be found here: [Coroutine.hs]()
 
 So, let us get started!
@@ -180,6 +180,9 @@ rectOverlap tests two rectangles if they overlap (used for collision detection).
 
 # The main Coroutine
 
+The main coroutine is a coroutine taking input events as input and outputs the game state.
+The type synonym of the main coroutines type is introduced for verbosity.
+
 ```haskell
 -- Game logic
 type MainCoroutineType = Coroutine (Event Input) GameState
@@ -194,7 +197,13 @@ mainCoroutine = proc inEvents -> do
   returnA -< GameState plState blState
 ```
 
+The player state is computed with the input events. The collisions of the ball with player an wall solely depend on the previous ball state. ballWallCollisions and ballPlayerCollisions can therefore pure functions and not coroutines. That is why "colls" is defined in a let expression. The new ballState is calculated using this collisions information.
+
+The construct with "rec" and "delay" is needed because the ball state from the last frame is required. This is construct is explained in [Purely Functional, Declarative Game Logic Using Reactive Programming](https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md).
+
 # The Player
+
+The player moves according to which movement keys are pressed without crossing the bondings of the game.
 
 ```haskell
 playerState :: Coroutine (Event Input) PlayerState
@@ -208,11 +217,14 @@ playerVelocity = proc inEvents -> do
   leftDown <- keyDown leftKeyCode -< inEvents
   rightDown <- keyDown rightKeyCode -< inEvents
   returnA -< if leftDown then -playerSpeed else (if rightDown then playerSpeed else 0.0)
-````
+```
 
 # The Ball state
 
 ## Collisions
+
+The ball state needs the collision events as input (see the main coroutine).
+
 ```haskell
 ballWallCollisions :: BallState -> (Event BallCollision)
 ballWallCollisions (BallState (bx,by)) =
@@ -235,6 +247,8 @@ ballPlayerCollisions playerState ballState =
 ```
 
 ## Updating the ball state
+
+Using this collisions events the ball is updated by moving and bouncing according to the collision events.
 
 ```haskell
 ballState :: Coroutine (Event BallCollision) BallState
@@ -262,5 +276,6 @@ ballVelocity = scanE bounce initBallSpeed
 
 I have little experience with FRP (this blog article is my first attempt to write a FRP application). I would have liked to use [Reactive Banana]() for this, but at present I am unable to compile Reactive Banana with UHC or haste.
 
-According to [this]() Reactive Banana has been compiled with UHC, but ...
+According to [this]() Reactive Banana has been compiled with UHC, but in the new version, support for UHC will be [dropped]().
+
 haste failed to compile Reactive Banana because of missing PrimOps. According to the maintainer of haste, that is a solvable problem and will be fixed in the future.
