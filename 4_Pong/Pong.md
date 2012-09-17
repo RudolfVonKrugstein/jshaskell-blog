@@ -7,14 +7,14 @@ Here is a preview (again, click on the canvas to get input focus).
 <script src="" type="text/javascript"></script>
 <canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
 
-But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming](https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md). I take the terminus "coroutine" from that blog entry. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.
-So make sure you read and understand that blog entry. The resulting code can be found here: [Coroutine.hs]()
+But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP]. I take the terminus "coroutine" from that blog entry. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.
+So make sure you read and understand that blog entry. The resulting code can be found here: [Coroutine.hs][Coroutine.hs].
 
 So, let us get started!
 
 # Imports and definitions
 
-I follow the source file [Pong.hs]() and therefor start with the imports and some definitions used later in the game.
+I follow the source file [Pong.hs][Pong.hs] and therefor start with the imports and some definitions used later in the game.
 
 ```haskell
 {-# LANGUAGE Arrows #-}
@@ -174,7 +174,7 @@ ballRect :: BallState -> Rect
 ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
 ```
 
-keyDown takes a keycode and outputes a coroutine indicating at all times if the given key is down given the input stream (The Event type comes from [Coroutine.hs]()).
+keyDown takes a keycode and outputes a coroutine indicating at all times if the given key is down given the input stream (The Event type comes from [Coroutine.hs][Coroutine.hs]).
 
 rectOverlap tests two rectangles if they overlap (used for collision detection). playerRect and ballRect return the rectangle occupied by the paddle and ball respectively.
 
@@ -199,7 +199,7 @@ mainCoroutine = proc inEvents -> do
 
 The player state is computed with the input events. The collisions of the ball with player an wall solely depend on the previous ball state. ballWallCollisions and ballPlayerCollisions can therefore pure functions and not coroutines. That is why "colls" is defined in a let expression. The new ballState is calculated using this collisions information.
 
-The construct with "rec" and "delay" is needed because the ball state from the last frame is required. This is construct is explained in [Purely Functional, Declarative Game Logic Using Reactive Programming](https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md).
+The construct with "rec" and "delay" is needed because the ball state from the last frame is required. This is construct is explained in [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP].
 
 # The Player
 
@@ -274,8 +274,13 @@ ballVelocity = scanE bounce initBallSpeed
 
 # Conclusion
 
-I have little experience with FRP (this blog article is my first attempt to write a FRP application). I would have liked to use [Reactive Banana]() for this, but at present I am unable to compile Reactive Banana with UHC or haste.
+I have little experience with FRP (this blog article is my first attempt to write a FRP application). I would have liked to use [Reactive Banana][ReactiveBanana] for this, but at present I am unable to compile Reactive Banana with UHC or haste.
 
-According to [this]() Reactive Banana has been compiled with UHC, but in the new version, support for UHC will be [dropped]().
+According to [this](https://github.com/HeinrichApfelmus/reactive-banana/issues/30) Reactive Banana has been compiled with UHC, but in the new version, support for UHC will be [dropped](http://apfelmus.nfshost.com/blog/2012/08/26-frp-banana-0-7.html).
 
 haste failed to compile Reactive Banana because of missing PrimOps. According to the maintainer of haste, that is a solvable problem and will be fixed in the future.
+
+[FRP]: https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md "Purely Functional, Declarative Game Logic Using Reactive Programming"
+[Coroutine.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Coroutine.hs "Coroutine source file"
+[Pong.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Pong.hs "Main pong source file"
+[ReactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana "Reactive Banana on Haskell wiki"
