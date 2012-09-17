@@ -1,14 +1,14 @@
-In the [last Post](http://jshaskell.blogspot.de/2012/07/first-interactive-application.html) we wrote the first interactive application where a paddle on the bottom of the canvas could be moved via keyboard input.
+In the [last Post][last] we wrote the first interactive javascript application in haskell where a paddle on the bottom of the canvas could be moved via keyboard input.
 
 In this next step we will add ball (a moving circle) that can bounce of the paddle and the walls.
 
-Here is a preview (again, click on the canvas to get input focus).
+Here is a preview (again, click on the canvas to get input focus). If you are not viewing this blog article on blogspot and the application does not work, try the original [article page][this].
 
 <script src="" type="text/javascript"></script>
 <canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
 
-But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP]. I take the terminus "coroutine" from that blog entry. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.
-So make sure you read and understand that blog entry. The resulting code can be found here: [Coroutine.hs][Coroutine.hs].
+But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP]. I take the terminus "coroutine" from that blog article. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.
+So make sure you read and understand that blog article. The resulting code can be found here: [Coroutine.hs][Coroutine.hs].
 
 So, let us get started!
 
@@ -46,7 +46,7 @@ data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
 
 We will use Arrow Syntax and tell the compiler that we do. Actually UHC does not support Arrow Syntax (yet?), but more about that later.
 
-We import Data.VectorSpace allowing us to use some basic vector operation with tuples of Doubles. Here we only need addition, but I if we need more VectorSpace is handy.
+We import Data.VectorSpace allowing us to use some basic vector operation with tuples of Doubles. Here we only need addition, but if we need more VectorSpace is handy.
 
 The input data will be a series of Keyboard up and down events with corresponding key codes. BallCollision describes a collision of the ball with the wall or the paddle in a certain direction.
 
@@ -81,9 +81,9 @@ canvasName = "canvas2"
 
 Again, these should be relatively self explaining. Keycode 37 and 39 correspond to the arrow keys. canvas2 is the name of the canvas defined in the html code of this blog.
 
-# Entry point on callbacks
+# Entry point and callbacks
 
-In difference to the last callback we will not use a javascript function to save and store global objects. Instead the objects will be stored in IORefs which are passed to the callbacks.
+In difference to the last blog article we will not use a javascript function to save and store global objects. Instead the objects will be stored in IORefs which are passed to the callbacks.
 
 ```haskell
 -- entry point
@@ -110,11 +110,18 @@ onKeyUp input keyCode = do
   writeIORef input i'
 ```
 
-So main sets the initilize function to be called then the window is loaded. initilize creates 2 IORefs, one for the main coroutine (which will be defined later) and one for the input stream, which is a list of input events. onKeyDown and onKeyUp are called when a key is pressed or released and expand the input stream.
+So main sets the initilize function to be called then the window is loaded. initilize creates 2 IORefs, one for the main coroutine (which will be defined later) and one for the input stream, which is a list of input events.
+
+The main coroutine is the place where the game logic happens. The output of the main coroutine is the current game state. Because the current main coroutine depends on the previous calls to it, it must be stored between game updates.
+
+onKeyDown and onKeyUp are called when a key is pressed or released and expand the input stream.
 
 update is set to be called every 20 milliseconds with the state and input IORefs passed to it.
 
 #Updating and drawing the game sate
+
+Next we will draw the game state (the output of the main coroutine). This is basicly the same as what we did in the last blog article, only that now we also need to draw a circle for the ball.
+
 ```haskell
 -- draw a gamestate
 draw :: GameState -> IO ()
@@ -147,7 +154,7 @@ The update function reads the current main coroutine and input stream. The corou
 
 # Some helper functions
 
-Before the main game logic starts a few helper functions are defined.
+Before the main game logic a few helper functions are defined.
 
 ```haskell
 -- helper functions
@@ -174,14 +181,16 @@ ballRect :: BallState -> Rect
 ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
 ```
 
-keyDown takes a keycode and outputes a coroutine indicating at all times if the given key is down given the input stream (The Event type comes from [Coroutine.hs][Coroutine.hs]).
+keyDown takes a keycode and outputs a coroutine indicating at all times if the given key is down given the input stream (The Event type comes from [Coroutine.hs][Coroutine.hs]). We will need this because the paddle is supposed to be moving as long as an arrow key is pressed.
+
+Note that this is a little different that what we did in the [last post][last]. Actually there it only worked because javascript fires continuous "keyDown" events when a key is hold down, but that is a platform dependent behavior and we do not want to rely on it. Also this firing of key down events does not immediately start when a key is pressed. There is a short break. If you [go back][last] on that post and try the application, you will note that the paddle does not start moving immediately, but there is a short delay after pressing a key.
 
 rectOverlap tests two rectangles if they overlap (used for collision detection). playerRect and ballRect return the rectangle occupied by the paddle and ball respectively.
 
 # The main Coroutine
 
-The main coroutine is a coroutine taking input events as input and outputs the game state.
-The type synonym of the main coroutines type is introduced for verbosity.
+The main coroutine takes input events as input and outputs the game state.
+The type synonym MainCoroutineType is introduced for verbosity. Earlier it allowed us to create the IORef for the main coroutine in a more readable way (in my opinion).
 
 ```haskell
 -- Game logic
@@ -197,13 +206,13 @@ mainCoroutine = proc inEvents -> do
   returnA -< GameState plState blState
 ```
 
-The player state is computed with the input events. The collisions of the ball with player an wall solely depend on the previous ball state. ballWallCollisions and ballPlayerCollisions can therefore pure functions and not coroutines. That is why "colls" is defined in a let expression. The new ballState is calculated using this collisions information.
+The player state is computed with the input events. The collisions of the ball with player and wall solely depend on the previous ball state. ballWallCollisions and ballPlayerCollisions can therefore be pure functions and not coroutines. That is why "colls" is defined in a let expression. The new ballState is calculated using this collisions information.
 
-The construct with "rec" and "delay" is needed because the ball state from the last frame is required. This is construct is explained in [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP].
+The construct with "rec" and "delay" is needed because the ball state from the last frame is required. This construct is explained in [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP].
 
 # The Player
 
-The player moves according to which movement keys are pressed without crossing the bondings of the game.
+The player is moved with the arrow keys without crossing the bounding of the game.
 
 ```haskell
 playerState :: Coroutine (Event Input) PlayerState
@@ -218,6 +227,8 @@ playerVelocity = proc inEvents -> do
   rightDown <- keyDown rightKeyCode -< inEvents
   returnA -< if leftDown then -playerSpeed else (if rightDown then playerSpeed else 0.0)
 ```
+
+boundedIntegrate is a coroutine defined in [Coroutine.hs][Coroutine.hs] which integrates the input and clips it to a given range.
 
 # The Ball state
 
@@ -268,9 +279,68 @@ ballVelocity = scanE bounce initBallSpeed
       DownBounce -> (vx, -abs(vy))
 ```
 
-# Compiling with haste
+The ^+^ operator is defined in the vector space package and adds two vectors (in our case tuples of doubles).
 
-# Compiling with UHC
+# Compiling
+
+That it. Now we need to compile ...
+
+## haste
+
+For haste make sure the [newest version](https://github.com/valderman/haste-compiler) is installed. Because we use vector-space we need to install it for haste.
+
+First install vector space via cabal:
+
+```bash
+cabal install vector-space
+```
+
+Now unpack vector-space with cabal, and install AdditiveGroup.jsmod.
+
+```
+cabal unpack vector-space
+cd vector-space-0.8.2/src
+hastec --libinstall -O2 Data.VectorSpace Data.AdditiveGroup
+```
+
+That it! Now put [Pong.hs][Pong.hs], [Coroutine.hs][Coroutine.hs] and the haste version of [JavaScript.hs][JavaScriptHaste.hs] in a directory and compile with
+
+```bash
+hastec Pong.hs --start=asap
+```
+
+You should receive a file "Pong.js" which can be included in a html file, like this one: [haste html][indexHaste]
+
+## UHC
+
+With UHC it is a little bit more work. UHC does not support arrow syntax, so we must translate the haskell file with arrowp:
+
+```bash
+cabal install arrowp
+arrowp Pong.hs > PongNA.hs
+```
+
+I choose the name PongNA.hs for "Pong no arrows". For some reason I also can not get vector space to compile with UHC. Luckily we have not used much of vector space, only the ^+^ operator.
+So edit PongNA.hs and replace the line
+
+```haskell
+import Data.VectorSpace
+```
+
+with
+
+```haskell
+(^+^) :: Num a => (a,a) -> (a,a) -> (a,a)
+(^+^) (a1,a2) (b1,b2) = (a1+b1, a2+b2)
+```
+
+Now copy [Coroutine.hs][Coroutine.hs] and [JavaScript.hs][JavaSciptUHC.hs] (the UHC version) into the directory and compile with
+
+```bash
+uhc -tjs PongNA.hs -iuhc 
+```
+
+Since we do not need any additional javascript functions, the generated html page should work!
 
 # Conclusion
 
@@ -280,7 +350,13 @@ According to [this](https://github.com/HeinrichApfelmus/reactive-banana/issues/3
 
 haste failed to compile Reactive Banana because of missing PrimOps. According to the maintainer of haste, that is a solvable problem and will be fixed in the future.
 
+In the next article, we will add "blocks" to that can collide with the ball and disappear to have a breakout like game.
+
+[this]: http://jshaskell.blogspot.de "Original location of this article"
+[last]: http://jshaskell.blogspot.de/2012/07/first-interactive-application.html "Last blog entry"
 [FRP]: https://github.com/leonidas/codeblog/blob/master/2012/2012-01-17-declarative-game-logic-afrp.md "Purely Functional, Declarative Game Logic Using Reactive Programming"
 [Coroutine.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Coroutine.hs "Coroutine source file"
 [Pong.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Pong.hs "Main pong source file"
 [ReactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana "Reactive Banana on Haskell wiki"
+[JavaScriptHaste.hs]:
+[indexhaste]:
