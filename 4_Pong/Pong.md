@@ -334,7 +334,7 @@ with
 (^+^) (a1,a2) (b1,b2) = (a1+b1, a2+b2)
 ```
 
-Now copy [Coroutine.hs][Coroutine.hs] and [JavaScript.hs][JavaSciptUHC.hs] (the UHC version) into the directory and compile with
+Now copy [Coroutine.hs][Coroutine.hs] and [JavaScript.hs][JavaScriptUHC.hs] (the UHC version) into the directory and compile with
 
 ```bash
 uhc -tjs PongNA.hs -iuhc 
