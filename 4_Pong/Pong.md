@@ -340,6 +340,12 @@ Now copy [Coroutine.hs][Coroutine.hs] and [JavaScript.hs][JavaSciptUHC.hs] (the 
 uhc -tjs PongNA.hs -iuhc 
 ```
 
+The canvas needs to be added to the generated html file, so add
+
+```html
+<canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
+```
+
 Since we do not need any additional javascript functions, the generated html page should work!
 
 # Conclusion
