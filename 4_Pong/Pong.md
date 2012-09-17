@@ -1,6 +1,6 @@
-In the [last Post](http://jshaskell.blogspot.de/2012/07/first-interactive-application.html) we wrote the first interactive application where a blog on the bottom of the canvas could be moved via keyboard input.
+In the [last Post](http://jshaskell.blogspot.de/2012/07/first-interactive-application.html) we wrote the first interactive application where a paddle on the bottom of the canvas could be moved via keyboard input.
 
-In this next step we will add ball (a moving circle) that can bounce of the paddle (the moving block) and the walls.
+In this next step we will add ball (a moving circle) that can bounce of the paddle and the walls.
 
 Here is a preview (again, click on the canvas to get input focus).
 
