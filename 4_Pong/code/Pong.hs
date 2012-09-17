@@ -16,7 +16,7 @@ data Input = KeyUp Int | KeyDown Int deriving (Eq)
 type Vector = (Double, Double)
 
 data PlayerState = PlayerState {xPos :: Double}
-data BallState = BallState {pos :: Vector2D}
+data BallState = BallState {pos :: Vector}
 
 data GameState = GameState {player :: PlayerState,
                             ball :: BallState}
@@ -165,10 +165,10 @@ ballState = proc collEvents -> do
   pos <- scan (^+^) (pos initBallState) -< vel
   returnA -< BallState pos
 
-ballVelocity :: Coroutine (Event BallCollision) Vector2D
+ballVelocity :: Coroutine (Event BallCollision) Vector
 ballVelocity = scanE bounce initBallSpeed
   where
-    bounce :: Vector2D -> BallCollision -> Vector2D
+    bounce :: Vector -> BallCollision -> Vector
     bounce (vx,vy) coll = case coll of
       LeftBounce -> (abs(vx), vy)
       RightBounce -> (-abs(vx), vy)
