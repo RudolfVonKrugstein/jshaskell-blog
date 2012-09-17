@@ -303,10 +303,10 @@ cd vector-space-0.8.2/src
 hastec --libinstall -O2 Data.VectorSpace Data.AdditiveGroup
 ```
 
-That it! Now put [Pong.hs][Pong.hs], [Coroutine.hs][Coroutine.hs] and the haste version of [JavaScript.hs][JavaScriptHaste.hs] in a directory and compile with
+That it! Now put [Pong.hs][Pong.hs], [Coroutine.hs][Coroutine.hs], the haste version of [JavaScript.hs][JavaScriptHaste.hs] and the javascript helper functions [helpers.js][helpersHaste.js] in a directory and compile with
 
 ```bash
-hastec Pong.hs --start=asap
+hastec Pong.hs --start=asap --with-js=helpers.js
 ```
 
 You should receive a file "Pong.js" which can be included in a html file, like this one: [haste html][indexHaste]
@@ -356,7 +356,7 @@ According to [this](https://github.com/HeinrichApfelmus/reactive-banana/issues/3
 
 haste failed to compile Reactive Banana because of missing PrimOps. According to the maintainer of haste, that is a solvable problem and will be fixed in the future.
 
-In the next article, we will add "blocks" to that can collide with the ball and disappear to have a breakout like game.
+In the next article, we will add "blocks" that can collide with the ball and disappear to have a breakout like game.
 
 [this]: http://jshaskell.blogspot.de "Original location of this article"
 [last]: http://jshaskell.blogspot.de/2012/07/first-interactive-application.html "Last blog entry"
@@ -364,5 +364,7 @@ In the next article, we will add "blocks" to that can collide with the ball and 
 [Coroutine.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Coroutine.hs "Coroutine source file"
 [Pong.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Pong.hs "Main pong source file"
 [ReactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana "Reactive Banana on Haskell wiki"
-[JavaScriptHaste.hs]:
-[indexhaste]:
+[JavaScriptHaste.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/haste/JavaScript.hs
+[helpersHaste.js]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/haste/helpers.js
+[JavaScriptUHC.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/uhc/JavaScript.hs
+[indexhaste]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/indexHaste.html
