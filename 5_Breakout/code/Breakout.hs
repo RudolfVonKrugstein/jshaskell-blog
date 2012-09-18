@@ -2,18 +2,60 @@
 
 module Main where
 
-import JavaScript hiding (Event)
+import JavaScript
 import Coroutine
 import Data.IORef
 import Control.Arrow
-import Data.VectorSpace
 import Data.List
 
--- technical data
+import Data.VectorSpace
+
+-- input data
 data Input = KeyUp Int | KeyDown Int deriving (Eq)
 
-type Vector2D = (Double, Double)
+-- Game data
+type Vector = (Double, Double)
 
+data PlayerState = PlayerState {xPos :: Double}
+data BallState = BallState {ballPos :: Vector}
+data BlockState = BlockState {blockPos :: Vector, blockLives :: Int}
+
+data GameState = GameState {player :: PlayerState,
+                            ball :: BallState,
+                            blocks :: [BlockState]}
+
+data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
+data BlockCollision = BlockCollision
+data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
+
+-- game values
+screenWidth = 600.0
+screenHeight = 400.0
+playerColor = "black"
+
+ballColor = "red"
+playerYPos = screenHeight - playerHeight
+playerHeight = 15.0
+playerWidth = 40.0
+ballRadius = 5.0
+
+blockWidth = 60.0
+blockHeight = 20.0
+blockColor1live = "blue"
+blockColor2live = "darkblue"
+
+initBallState = BallState ((screenWidth / 2.0), (screenHeight - 50.0))
+initBallSpeed = (3.0, -3.0)
+
+initPlayerState = PlayerState ((screenWidth - playerWidth) / 2.0)
+
+initBlockStates = [BlockState (x,y) lives | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y, lives) <- [(60.0,2), (100.0,1), (140.0,2), (180.0,1), (220.0,1), (260.0,1)]]
+
+playerSpeed = 5.0
+
+-- technical values
+leftKeyCode = 37
+rightKeyCode = 39
 canvasName = "canvas3"
 
 -- entry point
@@ -58,9 +100,9 @@ draw gs = do
 
 drawBlock :: Context2D -> BlockState -> IO ()
 drawBlock ctx bs = do
-  setFillColor ctx blockColor
-  let bRect = blockRect bs
-  fillRect ctx (x bRect) (y bRect) (width bRect) (height bRect)
+  setFillColor ctx (if blockLives bs == 1 then blockColor1live else blockColor2live)
+  let r = blockRect bs
+  fillRect ctx (x r) (y r) (width r) (height r)
 
 -- update function
 update :: IORef MainCoroutineType -> IORef (Event Input) -> IO ()
@@ -72,46 +114,31 @@ update state input = do
   draw gs
   writeIORef state co'
 
--- Game data
-type Vector = (Double, Double)
+-- helper functions
+keyDown :: Int -> Coroutine (Event Input) Bool
+keyDown code = scanE step False 
+  where
+  step old input
+    | input == KeyUp code   = False
+    | input == KeyDown code = True
+    | otherwise             = old
 
-data PlayerState = PlayerState {xPos :: Double}
-data BallState = BallState {ballPos :: Vector2D}
-data BlockState = BlockState {blockPos :: Vector2D, fade :: Double}
+rectOverlap :: Rect -> Rect -> Bool
+rectOverlap r1 r2
+  | x r1 >= x r2 + width r2 = False
+  | x r2 >= x r1 + width r1 = False
+  | y r1 >= y r2 + height r2 = False
+  | y r2 >= y r1 + height r1 = False
+  | otherwise                = True
 
-data GameState = GameState {player :: PlayerState,
-                            ball :: BallState,
-                            blocks :: [BlockState]}
+playerRect :: PlayerState -> Rect
+playerRect (PlayerState px) = Rect px playerYPos playerWidth playerHeight
 
-data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
-data BlockCollision = BlockCollision
-data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
--- game values
-screenWidth = 600.0
-screenHeight = 400.0
-playerColor = "black"
+ballRect :: BallState -> Rect
+ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
 
-ballColor = "red"
-playerYPos = screenHeight - playerHeight
-playerHeight = 15.0
-playerWidth = 40.0
-ballRadius = 5.0
-
-blockWidth = 60.0
-blockHeight = 20.0
-blockColor = "blue"
-
-initBallState = BallState ((screenWidth / 2.0), (screenHeight - 50.0))
-initBallSpeed = (3.0, -3.0)
-
-initPlayerState = PlayerState ((screenWidth - playerWidth) / 2.0)
-
-initBlockStates = [BlockState (x,y) 1.0 | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], y <- [60.0, 100.0, 140.0, 180.0, 220.0, 260.0]]
-
-playerSpeed = 5.0 --the speed with which the player moves
-
-leftKeyCode = 37
-rightKeyCode = 39
+blockRect :: BlockState -> Rect
+blockRect (BlockState (bx,by) _) = Rect bx by blockWidth blockHeight
 
 -- Game logic
 type MainCoroutineType = Coroutine (Event Input) GameState
@@ -120,29 +147,13 @@ mainCoroutine :: MainCoroutineType
 mainCoroutine = proc inEvents -> do
   plState <- playerState -< inEvents
   rec
-    let (ballColls', blockColls) = ballBlocksCollisions oldBlState oldBlocksStates
-    let ballColls = (ballWallCollisions oldBlState) ++ (ballPlayerCollisions plState oldBlState) ++ ballColls'
-    blState        <- ballState             -< ballColls
-    blocksStates   <- blocksStatesA          -< blockColls
-    oldBlState     <- delay initBallState   -< blState
-    oldBlocksStates<- delay initBlockStates -< blocksStates
-  returnA -< GameState plState blState blocksStates
-
-ballBlocksCollisions :: BallState -> [BlockState] -> (Event BallCollision, [Event BlockCollision])
-ballBlocksCollisions ballState blocksStates =
-  let ballR = ballRect ballState
-      foldStep (ballC, blockC) blockState =
-        if rectOverlap ballR (blockRect blockState) then
-          (ballRectCollisions ballState (blockRect blockState) ++ ballC,blockC ++ [[BlockCollision]])
-        else
-          (ballC, blockC ++ [[]])
-   in foldl' foldStep ([],[]) blocksStates
-
-blockState :: BlockState -> Coroutine (Event BlockCollision) (Maybe BlockState)
-blockState initState = scanE (\_ _ -> Nothing) (Just initState)
-
-blocksStatesA :: Coroutine ([Event BlockCollision]) ([BlockState])
-blocksStatesA = manager $ map blockState initBlockStates
+    let (ballBlockColls, blockColls) = ballBlocksCollisions oldBallState oldBlockStates
+    let colls = (ballWallCollisions oldBallState) ++ (ballPlayerCollisions plState oldBallState) ++ ballBlockColls
+    currBallState   <- ballState            -< colls --long names ...
+    currBlockStates <- blockStates          -< blockColls
+    oldBallState    <- delay initBallState  -< currBallState
+    oldBlockStates  <- delay initBlockStates-< currBlockStates
+  returnA -< GameState plState currBallState currBlockStates
 
 playerState :: Coroutine (Event Input) PlayerState
 playerState = proc inEvents -> do
@@ -175,46 +186,39 @@ ballPlayerCollisions playerState ballState =
   then ballRectCollisions ballState (playerRect playerState)
   else []
 
+ballBlocksCollisions :: BallState -> [BlockState] -> (Event BallCollision, [Event BlockCollision])
+ballBlocksCollisions ballState blockStates =
+  let ballR = ballRect ballState
+      foldStep (ballC, blockC) blockState = 
+        if rectOverlap ballR (blockRect blockState) then
+          (ballRectCollisions ballState (blockRect blockState) ++ ballC, blockC ++ [[BlockCollision]])
+        else
+          (ballC, blockC ++ [[]])
+  in foldl' foldStep ([],[]) blockStates
+
 ballState :: Coroutine (Event BallCollision) BallState
 ballState = proc collEvents -> do
   vel <- ballVelocity -< collEvents
   pos <- scan (^+^) (ballPos initBallState) -< vel
   returnA -< BallState pos
 
-ballVelocity :: Coroutine (Event BallCollision) Vector2D
+ballVelocity :: Coroutine (Event BallCollision) Vector
 ballVelocity = scanE bounce initBallSpeed
   where
-    bounce :: Vector2D -> BallCollision -> Vector2D
+    bounce :: Vector -> BallCollision -> Vector
     bounce (vx,vy) coll = case coll of
       LeftBounce -> (abs(vx), vy)
       RightBounce -> (-abs(vx), vy)
       UpBounce -> (vx, abs(vy))
       DownBounce -> (vx, -abs(vy))
   
-  	
-  
--- helper functions
-keyDown :: Int -> Coroutine (Event Input) Bool
-keyDown code = scanE step False 
+blockState :: BlockState -> Coroutine (Event BlockCollision) (Maybe BlockState)
+blockState initState = scanE update (Just initState)	
   where
-  step old input
-    | input == KeyUp code   = False
-    | input == KeyDown code = True
-    | otherwise             = old
+  update :: Maybe BlockState -> BlockCollision -> Maybe BlockState
+  update Nothing   _ = Nothing
+  update (Just bs) _ = if (blockLives bs == 1) then Nothing else Just $ bs{blockLives=1}
+  
+blockStates :: Coroutine ([Event BlockCollision]) ([BlockState])
+blockStates = manager $ map blockState initBlockStates
 
-rectOverlap :: Rect -> Rect -> Bool
-rectOverlap r1 r2
-  | x r1 >= x r2 + width r2 = False
-  | x r2 >= x r1 + width r1 = False
-  | y r1 >= y r2 + height r2 = False
-  | y r2 >= y r1 + height r1 = False
-  | otherwise                = True
-
-playerRect :: PlayerState -> Rect
-playerRect (PlayerState px) = Rect px playerYPos playerWidth playerHeight
-
-ballRect :: BallState -> Rect
-ballRect (BallState (bx,by)) = Rect (bx - ballRadius) (by - ballRadius) (2.0 * ballRadius) (2.0 * ballRadius)
-
-blockRect :: BlockState -> Rect
-blockRect (BlockState (bx,by) _) = Rect bx by blockWidth blockHeight
