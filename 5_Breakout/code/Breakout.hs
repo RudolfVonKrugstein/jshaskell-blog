@@ -57,7 +57,7 @@ playerSpeed = 5.0
 -- technical values
 leftKeyCode = 37
 rightKeyCode = 39
-restartKeyCode = 32
+restartKeyCode = 13
 canvasName = "canvas3"
 
 -- entry point
@@ -91,7 +91,7 @@ draw StartScreen = do
   clear ctx
   -- draw the text
   setFillColor ctx "black"
-  fillText ctx "Press Space to start --- (click the canvas for input focus)" (screenWidth/2.0 - 100.0) (screenHeight/2.0)
+  fillText ctx "Press enter to start --- (click the canvas for input focus)" (screenWidth/2.0 - 100.0) (screenHeight/2.0)
 
 draw (GameState playerState ballState blockStates) = do
   ctx <- getContext2d canvasName
