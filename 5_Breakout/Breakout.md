@@ -2,16 +2,16 @@ Hi, welcome to the 5th article of this blog.
 
 I am very exited! In the [last Post][last] we wrote a Pong like ... well ... let's call it javascript application. In this post I have expanded it by the following properties:
 
-* The game does not start until you hit press
+* The game does not start until you hit space.
 * There are blocks that can be hit by the ball and disappear.
 * There are even blocks with 2 lives (dark blue) that turn into normal blocks on the first hit.
 * The game stops when the ball leaves the canvas downward.
 
-This means, there is a goal and there is a game over situation. So in this point one could actually call it a game. And it even has a start screen ... did I mention that I am exitied?
-
+This means, there is a goal and there is a game over situation. So at this point one could actually call it a game. And it even has a start screen ... did I mention that I am exitied?
+/,anma
 But, now, as always, here is a preview. As always you have to click the canvas to get input focus. If you are not viewing this blog article on blogspot and the application does not work, try the original [article page][this].
 
-** Note: ** This currently only works if you are viewing this article only (not in the flow of the complete blog). I am working on the problem ...
+**Note:** This currently only works if you are viewing this article only (not in the flow of the complete blog). I am working on the problem ...
 
 <script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/5_Breakout/code/compiled/Breakout.js" type="text/javascript"></script>
 <canvas height="400" id="canvas3" style="background-color: white;" width="600" tabindex="1"></canvas>
@@ -50,20 +50,18 @@ switch init = Coroutine $ \(e,i) ->
 (<$) events content = map (\_ -> content) events
 ```
 
-## manager
-The manger is for managing the blocks. Every blocks state is described as a coroutine, and in the beginning there is a set of blocks in the game (first parameter to manager).
+**manager:** The manger is for managing the blocks. Every blocks state is described as a coroutine, and in the beginning there is a set of blocks in the game (first parameter to manager).
 
 Every block Coroutine returns "Nothing" when the block is destroyed, the manager than removes the block from the set.
 
 Note that at present there is no way of inserting new blocks in the manager, it is not needed in this game.
 
-## switch
+**switch:**
 Switch allows us to switch between different game states, which all are described by coroutines with the same type.
 
 Initially switch behaves as the init Coroutine (its first parameter) with an extra parameter holding events with other Coroutines. Whenever one of these events occurs, switch switches to the coroutine carried in the event.
 
-## <$
-
+**<$:**
 This is a operator, when applied to an event replaces the contents of the event with the second parameter. We need this to replace the content of the KeyDown event with the main Coroutine when the start key is pressed. You will see!
 
 # From Pong to Breakout 
@@ -293,3 +291,8 @@ Since we do not need any additional javascript functions, the generated html pag
 # Conclusion
 
 Well that is it. At places I find it a bit clumpsy and I wonder if another FRP library like [Reactive Banana][ReactiveBanana] or [elerea][elerea] would help. I will look into these!
+
+[last]: http://jshaskell.blogspot.de/2012/09/pong.html
+[this]: http://jshaskell.blogspot.de/2012/09/breakout.html
+[Coroutine.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/Coroutine.hs
+
