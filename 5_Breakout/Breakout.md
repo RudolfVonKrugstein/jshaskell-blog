@@ -50,23 +50,23 @@ switch init = Coroutine $ \(e,i) ->
 (<$) events content = map (\_ -> content) events
 ```
 
-**manager:** The manger is for managing the blocks. Every blocks state is described as a coroutine, and in the beginning there is a set of blocks in the game (first parameter to manager).
+**manager:** The manger is for managing the blocks. Every blocks state is produced by a coroutine, and in the beginning there is a set of blocks in the game (first parameter to manager). The manager distributes its input to all its coroutines. So the input list should have the same length. The output if each coroutines are collected in a list which is the output of the manager.
 
 Every block Coroutine returns "Nothing" when the block is destroyed, the manager than removes the block from the set.
 
 Note that at present there is no way of inserting new blocks in the manager, it is not needed in this game.
 
 **switch:**
-Switch allows us to switch between different game states, which all are described by coroutines with the same type.
+Switch allows us to switch between different game states, which all are described by coroutines of the same type.
 
 Initially switch behaves as the init Coroutine (its first parameter) with an extra parameter holding events with other Coroutines. Whenever one of these events occurs, switch switches to the coroutine carried in the event.
 
 **<$:**
-This is a operator, when applied to an event replaces the contents of the event with the second parameter. We need this to replace the content of the KeyDown event with the main Coroutine when the start key is pressed. You will see!
+This is a operator. When applied to an event it replaces the contents of the event with the second parameter. We need this to replace the content of the KeyDown event with the main Coroutine when the start key is pressed. You will see!
 
 # From Pong to Breakout 
 
-All very exiting, by the real excitement start now. The main source file [Breakout.hs][Breakout.hs] is based on the [last posts][last] [Pong.hs][Pong.hs]. Here I will go over the differences.
+All very exiting, but the real excitement start now. The main source file [Breakout.hs][Breakout.hs] is based on the [last posts][last] [Pong.hs][Pong.hs]. Here I will go over the differences.
 
 ## Definitions
 
@@ -90,7 +90,7 @@ data Rect = Rect { x::Double, y::Double, width ::Double, height::Double}
 The BlockState has been added, which contains the block position and the number of lives (1 or 2) of the block.
 The GameState has been expanded by a list of BlockStates AND can be just the start screen (when the game has not started).
 
-BlockCollision is a type for creating Events where the block collides with ball. A type synonym to () would also work, but I choose this more verbose way.
+BlockCollision is a type for creating Events where the block collides with the ball. A type synonym to () would also work, but I choose this more verbose way.
 
 ```haskell
 blockWidth = 60.0
@@ -104,7 +104,7 @@ restartKeyCode = 32
 canvasName = "canvas3"
 ```
 
-The color of the blocks depend if they have 1 or 2 lives. initBlockStates describes the blocks as the game starts. They are evenly spaced 6 in x and 6 in y directions. 2 of the y rows have 2 lives, the rest 1.
+The color of the blocks depend if they have 1 or 2 lives. initBlockStates describes the blocks as the game starts. They are evenly spaced, 6 in x and 6 in y directions. 2 of the y rows have 2 lives, the rest 1.
 
 The restartKeyCode is the key code of the space bar and the canvasName is the name of the canvas in the html code of [this][this] blog.
 
@@ -140,7 +140,7 @@ drawBlock ctx bs = do
   fillRect ctx (x r) (y r) (width r) (height r)
 ```
 
-draw now pattern matches its argument, to test if it is the start screen. If so, a short message telling the player to press space is displayed (see [fillText](http://www.w3schools.com/html/html5_canvas.asp) in some javascript documentation).
+draw pattern matches its argument, to test if it is the start screen. If so, a short message telling the player to press space is displayed (see [fillText](http://www.w3schools.com/html/html5_canvas.asp) in some javascript documentation).
 
 ## helpers
 
@@ -155,7 +155,7 @@ blockRect (BlockState (bx,by) _) = Rect bx by blockWidth blockHeight
 
 gameOver is a little helper function to test if the ball has left the canvas. It returns False on the start screen.
 
-blockRect returns the rectangle occupied a block.
+blockRect returns the rectangle occupied by a block.
 
 ## Main coroutine
 
@@ -187,12 +187,12 @@ mainGameCoroutine = proc inEvents -> do
 
 The original main coroutine has been renamed to mainGameCoroutine. There is a new "main coroutine" mainStartScreenCoroutine which is used while in the start screen. The new mainCoroutine switches between these two coroutine when the player pressed space, or the game is over.
 
-Remember, the ... operator replaces the contents of an event with its second parameter (here the mainGameCoroutine) and switch receives events containing coroutines to which it switches.
+Remember, the <$ operator replaces the contents of an event with its second parameter (here the mainGameCoroutine) and switch receives events containing coroutines to which it switches.
 
-mainGameCoroutine has been extended by the blocks. ballBlocksCollisions, as we will see later, returns a tuple with the ballCollisions events due to the blocks and a list of BlockCollision events.
-This list has the same length as the list of blocks (in oldBlockStates). The n-th element of this list are the collisions of the n-th block.
+mainGameCoroutine has been extended by the blocks. ballBlocksCollisions, as we will see later, returns a tuple with the ballCollisions events due to collisions with the blocks, and a list of BlockCollision events.
+This list has the same length as the list of blocks (in oldBlockStates). The n-th element of this list are the collisions with the n-th block.
 
-The block collisions are than passed to the blockState arrow while the ballCollisions are added to the collisions passed to ballState.
+The block collisions are than passed to the blockStates arrow while the ballCollisions are added to the collisions passed to ballState.
 
 I dislike the long names like "currBallState" here. I would have called it ballState, but there is already an arrow with the same name. I wonder if there is a less clumsy way of doing this ...
 
@@ -210,9 +210,9 @@ ballBlocksCollisions ballState blockStates =
   in foldl' foldStep ([],[]) blockStates
 ```
 
-In my eyes, this is the most complicated function. It takes the ball state and the block states (as a list) and produces ball collisions events, and a list of block collision events, which has the same length as the input block state list.
+In my opinion, this is the most complicated function. It takes the ball state and the block states (as a list) and produces ball collisions events, and a list of block collision events, which has the same length as the input block state list.
 
-The foldStep function takes the next block, tests it for collision and updates the list of ball and block collisions. Here the ball collision events are only expanded when a collision happens. The wlist of block collision events is always expanded. By an empty event (empty list) when no collision happens, and by a BlockCollision event in case of collision. This is because the position in this event reflects the block that will receive it.
+The foldStep function takes the next block, tests it for collision and updates the list of ball and block collisions. Here the ball collision events are only expanded when a collision happens. The list of block collision events is always expanded. By an empty event (empty list) when no collision happens, and by a BlockCollision event in case of collision. This is because the position in this list reflects the block that will receive it.
 
 ## Updating the block state
 
@@ -231,7 +231,7 @@ blockStates = manager $ map blockState initBlockStates
 Every block has its own coroutine, which receives block collision events. In case of such an event, the number of lives is reduced or the block is removed (if there are no lives left).
 The coroutines return a Maybe data type, because they are inserted into the manager. Nothing is returned if the block should be deleted.
 
-blockStats uses the manager to manage all "living" blocks.
+blockStates uses the manager to manage all "living" blocks.
 
 # Compiling
 
@@ -260,7 +260,7 @@ cabal install arrowp
 arrowp Breakout.hs > BreakoutNA.hs
 ```
 
-I choose the name PongNA.hs for "Pong no arrows". For some reason I also can not get vector space to compile with UHC. Luckily we have not used much of vector space, only the ^+^ operator.
+I choose the name BreakoutNA.hs for "Breakout no arrows". For some reason I also can not get vector space to compile with UHC. Luckily we have not used much of vector space, only the ^+^ operator.
 So edit PongNA.hs and replace the line
 
 ```haskell
@@ -295,4 +295,8 @@ Well that is it. At places I find it a bit clumpsy and I wonder if another FRP l
 [last]: http://jshaskell.blogspot.de/2012/09/pong.html
 [this]: http://jshaskell.blogspot.de/2012/09/breakout.html
 [Coroutine.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/Coroutine.hs
-
+[Breakout.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/Breakout.hs
+[Pong.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/4_Pong/code/Pong.hs
+[JavaScriptHaste.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/haste/JavaScript.hs
+[helpersHaste.js]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/haste/helpers.js
+[JavaScriptUHC.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/uhc/JavaScript.hs
