@@ -91,7 +91,7 @@ draw StartScreen = do
   clear ctx
   -- draw the text
   setFillColor ctx "black"
-  fillText ctx "Press Space to start" (screenWidth/2.0) (screenHeight/2.0)
+  fillText ctx "Press Space to start --- (click the canvas for input focus)" (screenWidth/2.0 - 100.0) (screenHeight/2.0)
 
 draw (GameState playerState ballState blockStates) = do
   ctx <- getContext2d canvasName
