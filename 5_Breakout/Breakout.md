@@ -300,3 +300,6 @@ Well that is it. At places I find it a bit clumpsy and I wonder if another FRP l
 [JavaScriptHaste.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/haste/JavaScript.hs
 [helpersHaste.js]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/haste/helpers.js
 [JavaScriptUHC.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/uhc/JavaScript.hs
+[ReactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana "Reactive Banana on Haskell wiki"
+[elerea]: http://hackage.haskell.org/package/elerea
+[indexHaste]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/5_Breakout/code/indexHaste.html
