@@ -27,6 +27,11 @@ function jsFillRect(context, x, y, width, height, _) {
 	return [1,0];
 }
 
+function jsFillText(context, text, x, y, _) {
+	context.fillText(text,x,y);
+	return [1,0];
+}
+
 function jsSetFillColor(context, color, _) {
 	context.setFillColor(color);
 	return [1,0];
@@ -45,16 +50,5 @@ function jsSetInterval(msecs, cb, _) {
 function jsSetOnLoad(cb, _) {
 	window.addEventListener('load', function() {A(cb,[0]);}, false);
 	return [1,0];
-}
-
-var allObjects = {}
-
-function jsSaveGlobalObject(name, obj) {
-	allObjects[name] = obj;
-	return [1,0];
-}
-
-function jsLoadGlobalObject(name) {
-	return [1,0,allObjects[name]];
 }
 

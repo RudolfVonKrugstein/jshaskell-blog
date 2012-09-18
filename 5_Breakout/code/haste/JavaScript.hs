@@ -4,14 +4,13 @@ module JavaScript(
   getContext2d,
   fillRect,
   fillCircle,
+  fillText,
   setFillColor,
   clear,
   setInterval,
   setOnLoad,
   setOnKeyDown,
-  setOnKeyUp,
-  saveGlobalObject,
-  loadGlobalObject
+  setOnKeyUp
 )
  where
 
@@ -28,6 +27,10 @@ getContext2d name = withElem name getContext2dFromCanvas
 
 foreign import ccall "jsFillRect"
   fillRect :: Context2D -> Double -> Double -> Double -> Double -> IO ()
+
+foreign import ccall "jsFillText"
+  jsFillText :: Context2D -> JSString -> Double -> Double -> IO ()
+fillText ctx str = jsFillText ctx (toJSStr str)
 
 foreign import ccall "jsBeginPath" beginPath :: Context2D -> IO ()
 foreign import ccall "jsClosePath" closePath :: Context2D -> IO ()
@@ -59,15 +62,4 @@ setOnKeyDown elementName cb = withElem elementName $ \e -> setCallback e OnKeyDo
   
 setOnKeyUp :: String -> (Int -> IO ()) -> IO Bool
 setOnKeyUp elementName cb = withElem elementName $ \e -> setCallback e OnKeyUp cb
-
-foreign import ccall jsSaveGlobalObject :: JSString -> Ptr a -> IO ()
-foreign import ccall jsLoadGlobalObject :: JSString -> IO (Ptr a)
-
-saveGlobalObject :: String -> a -> IO ()
-saveGlobalObject name obj = jsSaveGlobalObject (toJSStr name) (toPtr obj)
-
-loadGlobalObject :: String -> IO a
-loadGlobalObject name = do
-  ptr <- jsLoadGlobalObject (toJSStr name)
-  return $ fromPtr ptr
 

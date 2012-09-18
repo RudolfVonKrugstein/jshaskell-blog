@@ -23,6 +23,7 @@ data BlockState = BlockState {blockPos :: Vector, blockLives :: Int}
 data GameState = GameState {player :: PlayerState,
                             ball :: BallState,
                             blocks :: [BlockState]}
+                 | StartScreen
 
 data BallCollision = LeftBounce | RightBounce | UpBounce | DownBounce
 data BlockCollision = BlockCollision
@@ -56,6 +57,7 @@ playerSpeed = 5.0
 -- technical values
 leftKeyCode = 37
 rightKeyCode = 39
+restartKeyCode = 32
 canvasName = "canvas3"
 
 -- entry point
@@ -84,18 +86,25 @@ onKeyUp input keyCode = do
 
 -- draw a gamestate
 draw :: GameState -> IO ()
-draw gs = do
+draw StartScreen = do
+  ctx <- getContext2d canvasName
+  clear ctx
+  -- draw the text
+  setFillColor ctx "black"
+  fillText ctx "Press Space to start" (screenWidth/2.0) (screenHeight/2.0)
+
+draw (GameState playerState ballState blockStates) = do
   ctx <- getContext2d canvasName
   clear ctx
   -- draw player
   setFillColor ctx playerColor
-  let pRect = playerRect . player $ gs
+  let pRect = playerRect playerState
   fillRect ctx (x pRect) (y pRect) (width pRect) (height pRect)
   --draw blocks
-  mapM_ (drawBlock ctx) $ blocks gs
+  mapM_ (drawBlock ctx) $ blockStates
   --draw ball
   setFillColor ctx ballColor
-  let (x,y) = ballPos . ball $ gs
+  let (x,y) = ballPos ballState
   fillCircle ctx x y ballRadius
 
 drawBlock :: Context2D -> BlockState -> IO ()
@@ -115,6 +124,10 @@ update state input = do
   writeIORef state co'
 
 -- helper functions
+gameOver :: GameState -> Bool
+gameOver (GameState _ (BallState (_, by)) _) = by > screenHeight
+gameOver _ = False
+
 keyDown :: Int -> Coroutine (Event Input) Bool
 keyDown code = scanE step False 
   where
@@ -145,6 +158,18 @@ type MainCoroutineType = Coroutine (Event Input) GameState
 
 mainCoroutine :: MainCoroutineType
 mainCoroutine = proc inEvents -> do
+  rec
+    let startEvent = filter (\ke -> ke == KeyUp restartKeyCode) inEvents <$ mainGameCoroutine
+        stopEvent  = if gameOver oldState then [mainStartScreenCoroutine] else []
+    state <- switch mainStartScreenCoroutine -< (startEvent ++ stopEvent, inEvents)
+    oldState <- delay StartScreen -< state
+  returnA -< state
+
+mainStartScreenCoroutine :: MainCoroutineType
+mainStartScreenCoroutine = arr $ const StartScreen
+
+mainGameCoroutine :: MainCoroutineType
+mainGameCoroutine = proc inEvents -> do
   plState <- playerState -< inEvents
   rec
     let (ballBlockColls, blockColls) = ballBlocksCollisions oldBallState oldBlockStates

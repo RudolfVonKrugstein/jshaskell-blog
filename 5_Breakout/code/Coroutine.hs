@@ -112,3 +112,14 @@ manager cos = Coroutine $ \is ->
       res' = filter (isJust . fst) res
       (result, cos') = unzip res'
   in (catMaybes result, manager cos')
+
+-- switcher, starts with a specific coroutine and switches whenever a new coroutine is send via an event
+switch :: Coroutine a b -> Coroutine (Event (Coroutine a b), a) b
+switch init = Coroutine $ \(e,i) ->
+  let init' = last $ init : e --the last coroutine sent through
+      (o, init'') = runC init' i
+  in  (o, switch init'')
+
+-- replace the contents of an event
+(<$) :: Event a -> b -> Event b      
+(<$) events content = map (\_ -> content) events
