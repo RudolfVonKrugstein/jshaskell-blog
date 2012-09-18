@@ -33,7 +33,7 @@ function jsFillText(context, text, x, y, _) {
 }
 
 function jsSetFillColor(context, color, _) {
-	context.setFillColor(color);
+	context.fillColor = color;
 	return [1,0];
 }
 
