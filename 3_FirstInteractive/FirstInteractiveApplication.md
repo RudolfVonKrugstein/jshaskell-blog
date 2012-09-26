@@ -151,11 +151,11 @@ To store global variables we write a few helper functions in javascript:
 ```javascript
 var allObjects = {}
 
-function saveObject(name, obj) {
+function jsSaveObject(name, obj) {
  allObjects[name] = obj;
 }
 
-function loadObject(name) {
+function jsLoadObject(name) {
  return allObjects[name];
 }
 ```
@@ -178,7 +178,7 @@ loadGlobalObject name = do
 We can now load the current state with
 
 ```haskell
-state <- loadGlobalObject "state" :: IO State
+state <- jsLoadGlobalObject "state" :: IO State
 ```
 
 When we enter one of our callback functions and save it with a corresponding call to "saveGlobalObject".
@@ -372,7 +372,7 @@ update = do
   fillRect ctx (x s) playerY playerWidth playerHeight
 ```
 
-To compile with UHC you need [JavaScript.hs](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/2122fac47c4bdcbab0e2c53ba128112e00eeae3f/3_FirstInteractive/code/uhc/JavaScript.hs) and [helpers.js](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/2122fac47c4bdcbab0e2c53ba128112e00eeae3f/3_FirstInteractive/code/uhc/helpers.js). Than run:
+To compile with UHC you need [JavaScript.hs](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/3_FirstInteractive/code/uhc/JavaScript.hs) and [helpers.js](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/3_FirstInteractive/code/uhc/helpers.js). Than run:
 
 ```bash
 uhc -tjs Main.hs
@@ -392,7 +392,7 @@ into the head and
 
 to the body.
 
-For haste you need this [JavaScript.hs](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/2122fac47c4bdcbab0e2c53ba128112e00eeae3f/3_FirstInteractive/code/haste/JavaScript.hs) und [helpers.js](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/2122fac47c4bdcbab0e2c53ba128112e00eeae3f/3_FirstInteractive/code/haste/helpers.js) and compile it with:
+For haste you need this [JavaScript.hs](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/3_FirstInteractive/code/haste/JavaScript.hs) und [helpers.js](https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/3_FirstInteractive/code/haste/helpers.js) and compile it with:
 
 ```bash
 hastec --with-js=helpers.js Main.hs --start=asap
