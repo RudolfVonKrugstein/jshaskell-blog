@@ -151,11 +151,11 @@ To store global variables we write a few helper functions in javascript:
 ```javascript
 var allObjects = {}
 
-function jsSaveObject(name, obj) {
+function jsSaveGlobalObject(name, obj) {
  allObjects[name] = obj;
 }
 
-function jsLoadObject(name) {
+function jsLoadGlobalObject(name) {
  return allObjects[name];
 }
 ```
