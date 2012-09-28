@@ -17,7 +17,6 @@ writeOut s = do
 main = setOnLoad initilize
 
 initilize = do
-  session <- clockSession
   state <- newIORef mainWire
   setInterval 20.0 (update state)
 
@@ -31,5 +30,4 @@ update state = do
   writeIORef state wire'
 
 mainWire :: MainWire
-mainWire =
-  avg 1000 . as pDouble . noise (mkStdGen 0)
+mainWire = timeFrom 10
