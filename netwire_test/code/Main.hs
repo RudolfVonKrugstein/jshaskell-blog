@@ -54,7 +54,7 @@ update wire = do
   w <- readIORef wire
   let (res, w') = stepWire 30.0 Update w
   case res of
-    Left err -> alert $ "Error: " ++ show err
+    Left err -> alert "Error"
     Right gs -> draw gs
   writeIORef wire w'
 
@@ -74,14 +74,17 @@ keyUp :: Int -> EventP InputEvent
 keyUp code = when (==KeyUp code)
 
 -- Indicates if a given key is pressed at all time
-isKeyDown :: Int -> WireP InputEvent Bool
-isKeyDown code = hold False (False <$ (keyUp code) <|> True <$ (keyDown code))
+-- inhibits when it is not pressed
+isKeyPressed :: Int -> EventP InputEvent
+isKeyPressed code = switch (empty <$ (keyUp code) <|> identity <$ (keyDown code)) empty
+  where
+  identity = mkPure $ \_ x -> (Right x, identity)
 
 -- mainWire
 mainWire :: MainWireType
 mainWire = GameState <$> paddleSpeed
 
 paddleSpeed :: WireP InputEvent Double
-paddleSpeed = ((\d -> if d then -1.0 else 0.0) <$> isKeyDown leftKeyCode)
-               +
-              ((\d -> if d then 1.0 else 0.0) <$> isKeyDown rightKeyCode)
+paddleSpeed = ((1.0) . isKeyPressed leftKeyCode) <|> 0.0
+                +
+              (  1.0  . isKeyPressed rightKeyCode) <|> 0.0
