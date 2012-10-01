@@ -1,0 +1,6 @@
+.gitignore
+*.jsmod
+*.o
+*.hi
+*.mjs
+*.core
