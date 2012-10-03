@@ -74,6 +74,6 @@ mainWire :: MainWireType
 mainWire = State <$> ((pure True) . isKeyPressed leftKeyCode <|> (pure False)) <*> ((pure True) . isKeyPressed rightKeyCode <|> (pure False)) <*> speed
 
 speed :: WireP SDL.Event Double
-speed = (((pure (-1.0)) . isKeyPressed leftKeyCode) <|> pure 0.0)
+speed = ((((-1.0)) . isKeyPressed leftKeyCode) <|> 0.0)
               +
-              (((pure 1.0)  . isKeyPressed rightKeyCode) <|> pure 0.0)
+              (((1.0)  . isKeyPressed rightKeyCode) <|> 0.0)
