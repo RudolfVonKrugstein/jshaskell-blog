@@ -12,13 +12,14 @@ module JavaScript(
   setOnLoad,
   setOnKeyDown,
   setOnKeyUp,
-  alertDouble
+  hasteTrace
 )
  where
 
 import Haste hiding (Event)
 import Haste.Prim
 import Haste.DOM
+import System.IO.Unsafe
 
 newtype Context2D = Context2D JSAny
 
@@ -85,4 +86,7 @@ setOnKeyDown elementName cb = withElem elementName $ \e -> setCallback e OnKeyDo
 setOnKeyUp :: String -> (Int -> IO ()) -> IO Bool
 setOnKeyUp elementName cb = withElem elementName $ \e -> setCallback e OnKeyUp cb
 
-foreign import ccall "jsAlertDouble" alertDouble :: Double -> IO ()
+hasteTrace :: String -> a -> a
+hasteTrace s i = unsafePerformIO $ do
+  alert s
+  return i
