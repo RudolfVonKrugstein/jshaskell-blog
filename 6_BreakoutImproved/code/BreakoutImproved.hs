@@ -10,6 +10,7 @@ import Data.VectorSpace
 import qualified Control.Monad as CM
 import qualified Data.Function as F
 import Data.Maybe
+import Data.List
 
 -- Game Types
 -- Input events
@@ -34,7 +35,7 @@ data GameState  = GameState {
                   | StartScreen
 
 -- Information about collision
-data Collision   = Collision { normal :: Vector }
+data Collision   = Collision { normal :: Vector } deriving (Show)
 
 type Radius = Double
 data Circle = Circle { circlePos :: Vector, circleRadius :: Radius}
@@ -227,40 +228,29 @@ keyUp code = when (==KeyUp code)
 
 -- main wire
 mainWire :: MainWireType
-mainWire = F.fix (\start -> 
+{-mainWire = F.fix (\start -> 
              pure StartScreen . notE (keyDown startKeyCode) -->
              mainGameWire -->
-             start)
+             start)-}
+mainWire = mainGameWire
 
 mainGameWire :: MainWireType
 mainGameWire = proc input -> do
 
+  paddle <- paddleWire -< input
+
   rec
-    value <- integral_ 0 -< oldValue
-    oldValue <- delay 1 -< value
-  returnA -< GameState (Paddle value) initBall [] []
-  {-paddle   <- paddleWire -< input
-  rec
-    let ballWallColls = calcBallWallColls oldBall
-    ball <- ballWire -< ballWallColls
+    let ballBlockColls  = calcBallBlockColls  oldBall oldBlocks :: [Maybe Collision]
+        ballWallColls   = calcBallWallColls   oldBall
+        ballPaddleColls = calcBallPaddleColls oldBall paddle
+
+    ball <- ballWire . (arr (\a -> hasteTrace (show a) a)) -< ballWallColls -- (catMaybes ballBlockColls) ++ ballPaddleColls
     oldBall <- delay initBall -< ball
-  returnA -< GameState paddle ball [] []
-  update -< paddle
-  if input == Update then
-    else
-    empty -< ()-}
-  where
-    update :: WireP Paddle GameState
-    update = proc paddle -> do
-      rec
-        let ballBlockColls  = calcBallBlockColls  oldBall oldBlocks :: [Maybe Collision]
-            ballWallColls   = calcBallWallColls   oldBall
-            ballPaddleColls = calcBallPaddleColls oldBall paddle
-        ball      <- ballWire         -< (catMaybes ballBlockColls) ++ ballWallColls ++ ballPaddleColls
-        oldBall   <- delay initBall   -< ball
-        blocks    <- blocksWire       -< ballBlockColls
-        oldBlocks <- delay initBlocks -< blocks
-      returnA -< GameState paddle ball blocks []
+
+    blocks    <- blocksWire       -< []
+    oldBlocks <- delay initBlocks -< blocks
+
+  returnA -< GameState paddle ball initBlocks []
 
 -- induvidial game objects
 paddleWire :: WireP InputEvent Paddle
@@ -277,8 +267,19 @@ paddleSpeedWire = (valueFromKeyDown leftKeyCode 0.0 (-paddleSpeed))
                                                    pure downValue . notE (keyUp code) -->
                                                    start)
 
+accum1Fold :: (b -> a -> b) -> b -> WireP [a] b
+accum1Fold f init = accum1 step init
+  where
+  step last as = foldl' f last as
+
+ballSpeedWire :: WireP [Collision] Vector
+ballSpeedWire = accum1 (collide . (\a -> hasteTrace (show a) a)) initBallSpeed
+  where
+  collide v0 [] = v0
+  collide v0 ((Collision n):_) = v0 - (2.0 * (n <.> v0)) *^ n
+
 ballWire :: WireP [Collision] Ball
-ballWire = pure initBall
+ballWire = (Ball <$> integral_ initBallPos) . arr (\a -> hasteTrace (show a) a)  . ballSpeedWire . arr (\a -> hasteTrace (show a) a) 
 
 blocksWire :: WireP [Maybe Collision] [Block]
 blocksWire = pure initBlocks
