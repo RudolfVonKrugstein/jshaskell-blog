@@ -84,10 +84,10 @@ canvasName   = "canvas5"
 manager :: (Monad m) => [Wire e m a b] -> Wire e m [a] [b]
 manager ws' = mkGen $ \dt xs' -> do
             res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
-            let filt (Left a, b) = Just (a, b)
+            let filt (Right a, b) = Just (a, b)
                 filt _           = Nothing
                 resx = mapMaybe filt res
-            return (Left $ (fmap fst) resx,manager (fmap snd resx))
+            return (Right $ (fmap fst) resx,manager (fmap snd resx))
             
 
 -- type of the main wire
