@@ -12,6 +12,7 @@ import qualified Data.Function as F
 import qualified Data.Traversable as T
 import Data.Maybe
 import Data.List
+import qualified Data.Map as M
 
 -- Game Types
 -- Input events
@@ -81,7 +82,16 @@ fireKeyCode  = 13
 canvasName   = "canvas5"
 
 -- wire util
-shrinking :: (Monad m) => [Wire e m a b] -> Wire e m (Map Int a) (Int,b)
+shrinking :: (Monad m) => [Wire e m (Maybe a) b] -> Wire e m (M.Map Int a) [(Int,b)]
+shrinking ws' = mkGen $ \dt map -> do
+            let ids = [0, 1 ..] :: [Int]
+            res <- mapM (\(w,id) -> stepWire w dt (M.lookup id map)) $ zip ws' ids
+            let filt (Right a, b) = Just (a,b)
+                filt _            = Nothing
+                resx = mapMaybe filt res
+            return (Right $ zip ids (fmap fst resx), shrinking (fmap snd resx))
+            
+                
 {-manager ws' = mkGen $ \dt xs' -> do
             res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
             let filt (Right a, b) = Just (a, b)
