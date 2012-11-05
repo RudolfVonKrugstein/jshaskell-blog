@@ -9,6 +9,7 @@ import Prelude hiding ((.), id)
 import Data.VectorSpace
 import qualified Control.Monad as CM
 import qualified Data.Function as F
+import qualified Data.Traversable as T
 import Data.Maybe
 import Data.List
 
@@ -22,7 +23,8 @@ type Vector = (Double, Double) -- thanks to vector-space we can do ^+^ and simil
 
 -- state of game objects
 data Paddle     = Paddle { xPos    :: Double }
-data Ball       = Ball   { ballPos :: Vector }
+data Ball       = Ball   { ballPos   :: Vector,
+                           ballSpeed :: Vector}
 data Block      = Block  { blockType :: BlockType, blockPos :: Vector, blockLives :: Int}
                 | DyingBlock {blockFade :: Double}
 data BlockType  = NormalBlock | PowerBlock deriving (Eq)
@@ -50,7 +52,7 @@ paddleColor      = "black"
 paddleYPos       = screenHeight - paddleHeight
 paddleHeight     = 15.0
 paddleWidth      = 50.0
-paddleRadius     = 5.0
+paddleRadius     = 7.0
 paddleSpeed      = 7.0
 initPaddleXPos   = (screenWidth - paddleWidth) / 2.0
 initPaddle       = Paddle initPaddleXPos
@@ -59,11 +61,11 @@ ballColor        = "red"
 ballRadius       = 5.0
 initBallSpeed    = (3.0, -3.0)
 initBallPos      = (screenWidth / 2.0, screenHeight - 50.0)
-initBall         = Ball initBallPos
+initBall         = Ball initBallPos initBallSpeed
 
 blockWidth       = 60.0
 blockHeight      = 20.0
-blockRadius      = 7.0
+blockRadius      = 5.0
 normalBlockColor = ["blue", "darkblue"]
 powerBlockColor  = ["green"]
 initBlocks       = [Block t (x,y) l | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y,t,l) <- [(60.0, PowerBlock, 1), (100.0, NormalBlock,2), (140.0,NormalBlock,1), (180.0,NormalBlock,2), (260.0,NormalBlock,2)]]
@@ -78,6 +80,16 @@ startKeyCode = 13
 fireKeyCode  = 13
 canvasName   = "canvas5"
 
+-- wire util
+manager :: (Monad m) => [Wire e m a b] -> Wire e m [a] [b]
+manager ws' = mkGen $ \dt xs' -> do
+            res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
+            let filt (Left a, b) = Just (a, b)
+                filt _           = Nothing
+                resx = mapMaybe filt res
+            return (Left $ (fmap fst) resx,manager (fmap snd resx))
+            
+
 -- type of the main wire
 type MainWireType = WireP InputEvent GameState
 
@@ -89,7 +101,7 @@ initilize = do
   wire <- newIORef mainWire
   setOnKeyDown canvasName (onKeyDown wire)
   setOnKeyUp   canvasName (onKeyUp   wire)
-  setInterval 30.0 (update wire)
+  setInterval 20.0 (update wire)
 
 -- reactions to input events
 onKeyDown :: IORef MainWireType -> Int -> IO ()
@@ -125,7 +137,7 @@ circleCollision a b = do
   (Circle p1 r1) <- circle a
   (Circle p2 r2) <- circle b
   let centerDiff = p2 ^-^ p1
-  CM.guard (centerDiff <.> centerDiff > r1 * r2)
+  CM.guard (centerDiff <.> centerDiff <= (r1 + r2) * (r1 + r2))
   return $ Collision $ normalized centerDiff
 
 pointInRectangle    :: Vector -> Rectangle -> Bool
@@ -151,11 +163,13 @@ circleRectCollision c r = do
       -- test if collision with rectangle occured
       | not $ pointInRectangle (cx,cy) (Rectangle ((minX-cr), (minY-cr)) ((maxX+cr), (maxY+cr))) = Nothing
       -- collision definitly occured, find correct normal
-      | cx <= innerMinX = Just $ Collision (-1.0,0.0)
-      | cx >= innerMaxX = Just $ Collision (1.0, 0.0)
-      | cy <= innerMinY = Just $ Collision (0.0,-1.0)
-      | cy >= innerMaxY = Just $ Collision (0.0, 1.0)
-      | otherwise       = Just $ Collision (0.0, 0.0)
+      | otherwise = Just $ fst $ minimumBy (\(_,a) (_,b) -> compare a b)
+                          [
+                          (Collision (-1.0,0.0), cx - minX),
+                          (Collision (1.0, 0.0), maxX - cx),
+                          (Collision (0.0,-1.0), cy - minY),
+                          (Collision (0.0, 1.0), maxY - cy)
+                          ]
       where
         innerMinX = minX + rr
         innerMinY = minY + rr
@@ -167,7 +181,7 @@ instance CircleShaped Circle where
   circle c = Just c
 
 instance CircleShaped Ball where
-  circle (Ball p) = Just $ Circle p ballRadius
+  circle (Ball p _) = Just $ Circle p ballRadius
 
 instance CircleShaped Bullet where
   circle (Bullet p) = Just $ Circle p bulletRadius
@@ -194,7 +208,7 @@ draw (GameState paddle ball blocks bullets) = do
   fillRoundedRect ctx (xPos paddle) paddleYPos paddleWidth paddleHeight paddleRadius
   mapM_ (drawBlock ctx) $ blocks
   setFillColor ctx ballColor
-  let Ball (x,y) = ball
+  let Ball (x,y) _ = ball
   fillCircle ctx x y ballRadius
 
 drawBlock :: Context2D -> Block -> IO ()
@@ -208,7 +222,7 @@ calcBallBlockColls :: Ball -> [Block] -> [Maybe Collision]
 calcBallBlockColls b = map (circleRectCollision b)
 
 calcBallWallColls :: Ball -> [Collision]
-calcBallWallColls (Ball (bx,by)) = map snd $ filter (fst) $ [
+calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
   (bx <= 0          , Collision (1.0 , 0.0)),
   (bx >= screenWidth, Collision (-1.0, 0.0)),
   (by <= 0          , Collision (0.0 , 1.0))
@@ -239,22 +253,31 @@ mainGameWire = proc input -> do
 
   paddle <- paddleWire -< input
 
-  rec
-    let ballBlockColls  = calcBallBlockColls  oldBall oldBlocks :: [Maybe Collision]
-        ballWallColls   = calcBallWallColls   oldBall
-        ballPaddleColls = calcBallPaddleColls oldBall paddle
+  if input == Update then do
+    rec
+      let toMaybeFilter f = map filt
+            where
+            filt (Just a) = if f a then Just a else Nothing
+            filt Nothing  = Nothing
+          validCollDir (Collision n) = n <.> ballSpeed oldBall < 0.0
+          ballBlockColls  = toMaybeFilter validCollDir $ calcBallBlockColls  oldBall oldBlocks
+          ballWallColls   = calcBallWallColls   oldBall
+          ballPaddleColls = filter validCollDir $ calcBallPaddleColls oldBall paddle
 
-    ball <- ballWire . (arr (\a -> hasteTrace (show a) a)) -< ballWallColls -- (catMaybes ballBlockColls) ++ ballPaddleColls
-    oldBall <- delay initBall -< ball
+      ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (catMaybes ballBlockColls)
+      oldBall <- delay initBall -< ball
 
-    blocks    <- blocksWire       -< []
-    oldBlocks <- delay initBlocks -< blocks
-
-  returnA -< GameState paddle ball initBlocks []
+      blocks    <- blocksWire       -< []
+      oldBlocks <- delay initBlocks -< blocks
+    returnA -< GameState paddle ball initBlocks []
+  else
+    empty -< ()
 
 -- induvidial game objects
 paddleWire :: WireP InputEvent Paddle
-paddleWire = Paddle <$> (integral_ initPaddleXPos <<< paddleSpeedWire)
+paddleWire = Paddle <$> (integralLim1_ bound initPaddleXPos <<< (paddleSpeedWire &&& pure ()))
+  where
+  bound _ _ pos = max 0.0 $ min (screenWidth-paddleWidth) pos
 
 paddleSpeedWire :: WireP InputEvent Double 
 paddleSpeedWire = (valueFromKeyDown leftKeyCode 0.0 (-paddleSpeed))
@@ -273,13 +296,12 @@ accum1Fold f init = accum1 step init
   step last as = foldl' f last as
 
 ballSpeedWire :: WireP [Collision] Vector
-ballSpeedWire = accum1 (collide . (\a -> hasteTrace (show a) a)) initBallSpeed
+ballSpeedWire = accum1Fold (collide) initBallSpeed
   where
-  collide v0 [] = v0
-  collide v0 ((Collision n):_) = v0 - (2.0 * (n <.> v0)) *^ n
+  collide v0 (Collision n) = v0 - (2.0 * (n <.> v0)) *^ n
 
 ballWire :: WireP [Collision] Ball
-ballWire = (Ball <$> integral_ initBallPos) . arr (\a -> hasteTrace (show a) a)  . ballSpeedWire . arr (\a -> hasteTrace (show a) a) 
+ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
 blocksWire :: WireP [Maybe Collision] [Block]
 blocksWire = pure initBlocks
