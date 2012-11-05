@@ -81,13 +81,13 @@ fireKeyCode  = 13
 canvasName   = "canvas5"
 
 -- wire util
-manager :: (Monad m) => [Wire e m a b] -> Wire e m [a] [b]
-manager ws' = mkGen $ \dt xs' -> do
+shrinking :: (Monad m) => [Wire e m a b] -> Wire e m (Map Int a) (Int,b)
+{-manager ws' = mkGen $ \dt xs' -> do
             res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
             let filt (Right a, b) = Just (a, b)
                 filt _           = Nothing
                 resx = mapMaybe filt res
-            return (Right $ (fmap fst) resx,manager (fmap snd resx))
+            return (Right $ (fmap fst) resx,manager (fmap snd resx))-}
             
 
 -- type of the main wire
