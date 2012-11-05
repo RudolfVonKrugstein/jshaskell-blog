@@ -228,8 +228,13 @@ drawBlock ctx (Block t (x,y) lives) = do
   
 
 -- collsion detection
-calcBallBlockColls :: Ball -> [Block] -> [Maybe Collision]
-calcBallBlockColls b = map (circleRectCollision b)
+fromMaybeList :: Ord a => [(a,Maybe b)] -> M.Map a b
+fromMaybeList [] = M.empty
+fromMaybeList ((k,Nothing):xs) = fromMaybeList xs
+fromMaybeList ((k,Just v):xs) = M.insert k v (fromMaybeList xs)
+
+calcBallBlockColls :: Ball -> [(Int,Block)] -> M.Map Int Collision
+calcBallBlockColls ball = fromMaybeList . map (\(id,block) -> (id, circleRectCollision ball block))
 
 calcBallWallColls :: Ball -> [Collision]
 calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
@@ -265,20 +270,16 @@ mainGameWire = proc input -> do
 
   if input == Update then do
     rec
-      let toMaybeFilter f = map filt
-            where
-            filt (Just a) = if f a then Just a else Nothing
-            filt Nothing  = Nothing
-          validCollDir (Collision n) = n <.> ballSpeed oldBall < 0.0
-          ballBlockColls  = toMaybeFilter validCollDir $ calcBallBlockColls  oldBall oldBlocks
+      let validCollDir (Collision n) = n <.> ballSpeed oldBall < 0.0
+          ballBlockColls  = M.filter validCollDir $ calcBallBlockColls  oldBall oldBlocks
           ballWallColls   = calcBallWallColls   oldBall
           ballPaddleColls = filter validCollDir $ calcBallPaddleColls oldBall paddle
 
-      ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (catMaybes ballBlockColls)
+      ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (M.elems ballBlockColls)
       oldBall <- delay initBall -< ball
 
-      blocks    <- blocksWire       -< []
-      oldBlocks <- delay initBlocks -< blocks
+      blocks    <- blocksWire       -< ballBlockColls
+      oldBlocks <- delay $ zip [0,1..] initBlocks -< blocks
     returnA -< GameState paddle ball initBlocks []
   else
     empty -< ()
@@ -313,5 +314,14 @@ ballSpeedWire = accum1Fold (collide) initBallSpeed
 ballWire :: WireP [Collision] Ball
 ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
-blocksWire :: WireP [Maybe Collision] [Block]
-blocksWire = pure initBlocks
+blockWire :: Block -> WireP (Maybe Collision) Block
+blockWire init = while blockAlive . accum1 update init -->
+                 (DyingBlock <$> 1.0 - time / 30.0) . for 30.0
+  where
+  update old Nothing = old
+  update old _       = old { blockLives = (blockLives old) - 1 }
+  blockAlive b = blockLives b > 0
+
+
+blocksWire :: WireP (M.Map Int Collision) [(Int,Block)]
+blocksWire = shrinking (map blockWire initBlocks)
