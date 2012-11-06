@@ -14,6 +14,9 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as M
 
+import Data.Lenses.Lazy
+import Data.Lenses.Template ( makeLenses )
+
 -- Game Types
 -- Input events
 data InputEvent = KeyUp Int | KeyDown Int | Update
@@ -26,9 +29,12 @@ type Vector = (Double, Double) -- thanks to vector-space we can do ^+^ and simil
 data Paddle     = Paddle { xPos    :: Double }
 data Ball       = Ball   { ballPos   :: Vector,
                            ballSpeed :: Vector}
-data Block      = Block  { blockType :: BlockType, blockPos :: Vector, blockLives :: Int}
-                | DyingBlock {blockFade :: Double}
+data Block      = Block  { blockType :: BlockType, blockPos :: Vector, blockState :: BlockState}
+data BlockState = Alive Int | Dying Double
 data BlockType  = NormalBlock | PowerBlock deriving (Eq)
+
+$(makeLenses [''Block ''BlockState ''BlockType])
+
 data Bullet     = Bullet { bulletPos :: Vector }
 data GameState  = GameState {
                      paddle  :: Paddle,
@@ -200,8 +206,8 @@ instance RoundedRectShaped Paddle where
   roundedRect (Paddle x) = Just $ RoundedRect (x,paddleYPos) (x+paddleWidth,paddleYPos+paddleHeight) paddleRadius
 
 instance RoundedRectShaped Block where
-  roundedRect (DyingBlock _)    = Nothing
-  roundedRect (Block _ (x,y) _) = Just $ RoundedRect (x,y) (x+blockWidth,y+blockHeight) blockRadius
+  roundedRect (Block _ _ (Dying _))    = Nothing
+  roundedRect (Block _ (x,y) (Alive _)) = Just $ RoundedRect (x,y) (x+blockWidth,y+blockHeight) blockRadius
 
 -- drawing function, draw a game state
 draw :: GameState -> IO ()
@@ -222,8 +228,12 @@ draw (GameState paddle ball blocks bullets) = do
   fillCircle ctx x y ballRadius
 
 drawBlock :: Context2D -> Block -> IO ()
-drawBlock ctx (Block t (x,y) lives) = do
+drawBlock ctx (Block t (x,y) (Alive lives)) = do
   setFillColor ctx $ (if t == PowerBlock then powerBlockColor else normalBlockColor) !! (lives -1)
+  fillRoundedRect ctx x y blockWidth blockHeight blockRadius
+
+drawBlock ctx (Block t (x,y) (Dying f)) = do
+  setFillColor ctx $ "rgb(" ++ show f ++ "," ++ show f ++ "," ++ show f ++")"
   fillRoundedRect ctx x y blockWidth blockHeight blockRadius
   
 
@@ -278,9 +288,9 @@ mainGameWire = proc input -> do
       ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (M.elems ballBlockColls)
       oldBall <- delay initBall -< ball
 
-      blocks    <- blocksWire       -< ballBlockColls
-      oldBlocks <- delay $ zip [0,1..] initBlocks -< blocks
-    returnA -< GameState paddle ball initBlocks []
+      blocks    <- blocksWire -< ballBlockColls
+      oldBlocks <- delay $ [] -< blocks
+    returnA -< GameState paddle ball (map snd blocks) []
   else
     empty -< ()
 
@@ -316,11 +326,11 @@ ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
 blockWire :: Block -> WireP (Maybe Collision) Block
 blockWire init = while blockAlive . accum1 update init -->
-                 (DyingBlock <$> 1.0 - time / 30.0) . for 30.0
+                 (Block <$> initType <*> initPos <*> (Dying <$> (1.0 - time / 30.0)) . for 30.0
   where
   update old Nothing = old
-  update old _       = old { blockLives = (blockLives old) - 1 }
-  blockAlive b = blockLives b > 0
+  update old@(Block _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }
+  blockAlive (Block _ _ (Alive l)) = l > 0
 
 
 blocksWire :: WireP (M.Map Int Collision) [(Int,Block)]
