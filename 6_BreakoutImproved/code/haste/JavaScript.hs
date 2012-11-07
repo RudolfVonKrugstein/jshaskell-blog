@@ -7,6 +7,7 @@ module JavaScript(
   fillCircle,
   fillText,
   setFillColor,
+  Color(..),
   clear,
   setInterval,
   setOnLoad,
@@ -67,8 +68,12 @@ fillRoundedRect ctx x y w h r = do
   closePath ctx
   fill ctx
 
-foreign import ccall jsSetFillColor :: Context2D -> JSString -> IO ()
-setFillColor ctx = jsSetFillColor ctx . toJSStr
+data Color = Color {red :: Double, green :: Double, blue :: Double, alpha :: Double}
+
+foreign import ccall jsSetFillColor :: Context2D -> Double -> Double -> Double -> Double -> IO ()
+setFillColor :: Context2D -> Color -> IO ()
+setFillColor ctx color = jsSetFillColor ctx (red color) (green color) (blue color) (alpha color)
+
 foreign import ccall "jsClear"
   clear :: Context2D -> IO ()
 

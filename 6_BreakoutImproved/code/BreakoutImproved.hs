@@ -14,9 +14,6 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as M
 
-import Data.Lenses.Lazy
-import Data.Lenses.Template ( makeLenses )
-
 -- Game Types
 -- Input events
 data InputEvent = KeyUp Int | KeyDown Int | Update
@@ -32,8 +29,6 @@ data Ball       = Ball   { ballPos   :: Vector,
 data Block      = Block  { blockType :: BlockType, blockPos :: Vector, blockState :: BlockState}
 data BlockState = Alive Int | Dying Double
 data BlockType  = NormalBlock | PowerBlock deriving (Eq)
-
-$(makeLenses [''Block ''BlockState ''BlockType])
 
 data Bullet     = Bullet { bulletPos :: Vector }
 data GameState  = GameState {
@@ -55,7 +50,7 @@ data RoundedRect = RoundedRect { rectMin :: Vector, rectMax :: Vector, rectRadiu
 screenWidth      = 600.0
 screenHeight     = 400.0
 
-paddleColor      = "black"
+paddleColor      = Color 0.0 0.0 0.0 1.0
 paddleYPos       = screenHeight - paddleHeight
 paddleHeight     = 15.0
 paddleWidth      = 50.0
@@ -64,7 +59,7 @@ paddleSpeed      = 7.0
 initPaddleXPos   = (screenWidth - paddleWidth) / 2.0
 initPaddle       = Paddle initPaddleXPos
 
-ballColor        = "red"
+ballColor        = Color 1.0 0.0 0.0 1.0
 ballRadius       = 5.0
 initBallSpeed    = (3.0, -3.0)
 initBallPos      = (screenWidth / 2.0, screenHeight - 50.0)
@@ -73,12 +68,12 @@ initBall         = Ball initBallPos initBallSpeed
 blockWidth       = 60.0
 blockHeight      = 20.0
 blockRadius      = 5.0
-normalBlockColor = ["blue", "darkblue"]
-powerBlockColor  = ["green"]
-initBlocks       = [Block t (x,y) l | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y,t,l) <- [(60.0, PowerBlock, 1), (100.0, NormalBlock,2), (140.0,NormalBlock,1), (180.0,NormalBlock,2), (260.0,NormalBlock,2)]]
+normalBlockColor = [Color 0.0 0.0 1.0 1.0, Color 0.0 0.0 0.5 1.0]
+powerBlockColor  = [Color 0.0 0.5 0.0 1.0]
+initBlocks       = [Block t (x,y) (Alive l) | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y,t,l) <- [(60.0, PowerBlock, 1), (100.0, NormalBlock,2), (140.0,NormalBlock,1), (180.0,NormalBlock,2), (260.0,NormalBlock,2)]]
 
 bulletRadius     = 3.0
-bulletColor      = "darkgreen"
+bulletColor      = Color 0.0 0.5 0.0 1.0
 
 -- technical constants
 leftKeyCode  = 37
@@ -214,7 +209,7 @@ draw :: GameState -> IO ()
 draw StartScreen = do
   ctx <- getContext2d canvasName
   clear ctx
-  setFillColor ctx "black"
+  setFillColor ctx $ Color 0.0 0.0 0.0 1.0
   fillText ctx "Press enter to start (click the canvas for input focus)" (screenWidth / 2.0 - 100.0) (screenHeight /2.0)
 
 draw (GameState paddle ball blocks bullets) = do
@@ -233,7 +228,7 @@ drawBlock ctx (Block t (x,y) (Alive lives)) = do
   fillRoundedRect ctx x y blockWidth blockHeight blockRadius
 
 drawBlock ctx (Block t (x,y) (Dying f)) = do
-  setFillColor ctx $ "rgb(" ++ show f ++ "," ++ show f ++ "," ++ show f ++")"
+  setFillColor ctx $ ((if t == PowerBlock then powerBlockColor else normalBlockColor) !! 0) { alpha = f }
   fillRoundedRect ctx x y blockWidth blockHeight blockRadius
   
 
@@ -326,7 +321,7 @@ ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
 blockWire :: Block -> WireP (Maybe Collision) Block
 blockWire init = while blockAlive . accum1 update init -->
-                 (Block <$> initType <*> initPos <*> (Dying <$> (1.0 - time / 30.0)) . for 30.0
+                 Block (blockType init) (blockPos init) <$> (Dying <$> (pure 1.0) - (time / (pure 30.0))) . for 30.0
   where
   update old Nothing = old
   update old@(Block _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }

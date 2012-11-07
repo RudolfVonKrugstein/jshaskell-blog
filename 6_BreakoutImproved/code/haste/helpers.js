@@ -42,8 +42,8 @@ function jsFillText(context, text, x, y, _) {
 	return [1,0];
 }
 
-function jsSetFillColor(context, color, _) {
-	context.fillStyle = color;
+function jsSetFillColor(context, red, green, blue, alpha, _) {
+	context.fillStyle = "rgba(" + Math.round(red * 255.0) + "," + Math.round(green * 255.0) + "," + Math.round(blue * 255.0) + "," + alpha + ")";
 	return [1,0];
 }
 
