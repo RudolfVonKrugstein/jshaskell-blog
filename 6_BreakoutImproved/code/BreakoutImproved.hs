@@ -1,4 +1,5 @@
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Main where
 
@@ -26,11 +27,11 @@ type Vector = (Double, Double) -- thanks to vector-space we can do ^+^ and simil
 data Paddle     = Paddle { xPos    :: Double }
 data Ball       = Ball   { ballPos   :: Vector,
                            ballSpeed :: Vector}
-data Block      = Block  { blockType :: BlockType, blockPos :: Vector, blockState :: BlockState}
+data Block      = Block  { blockId :: Int, blockType :: BlockType, blockPos :: Vector, blockState :: BlockState}
 data BlockState = Alive Int | Dying Double
 data BlockType  = NormalBlock | PowerBlock deriving (Eq)
 
-data Bullet     = Bullet { bulletPos :: Vector }
+data Bullet     = Bullet { bulletId ::Int, bulletPos :: Vector }
 data GameState  = GameState {
                      paddle  :: Paddle,
                      ball    :: Ball,
@@ -70,9 +71,10 @@ blockHeight      = 20.0
 blockRadius      = 5.0
 normalBlockColor = [Color 0.0 0.0 1.0 1.0, Color 0.0 0.0 0.5 1.0]
 powerBlockColor  = [Color 0.0 0.5 0.0 1.0]
-initBlocks       = [Block t (x,y) (Alive l) | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y,t,l) <- [(60.0, PowerBlock, 1), (100.0, NormalBlock,2), (140.0,NormalBlock,1), (180.0,NormalBlock,2), (260.0,NormalBlock,2)]]
+initBlocks       = map (\(id,b) -> b {blockId = id}) $ zip [0,1..] [Block (-1) t (x,y) (Alive l) | x <- [20.0, 140.0, 240.0, 340.0, 440.0, 520.0], (y,t,l) <- [(60.0, PowerBlock, 1), (100.0, NormalBlock,2), (140.0,NormalBlock,1), (180.0,NormalBlock,2), (260.0,NormalBlock,2)]]
 
 bulletRadius     = 3.0
+bulletSpeed      = (0.0, -10.0)
 bulletColor      = Color 0.0 0.5 0.0 1.0
 
 -- technical constants
@@ -83,15 +85,16 @@ fireKeyCode  = 13
 canvasName   = "canvas5"
 
 -- wire util
-shrinking :: (Monad m) => [Wire e m (Maybe a) b] -> Wire e m (M.Map Int a) [(Int,b)]
-shrinking ws' = mkGen $ \dt map -> do
-            let ids = [0, 1 ..] :: [Int]
-            res <- mapM (\(w,id) -> stepWire w dt (M.lookup id map)) $ zip ws' ids
+dynamicSet :: (Monad m) => (c -> Wire e m a b) -> [Wire e m a b] ->  Wire e m (a, [c]) [b]
+dynamicSet creator ws' = mkGen $ \dt (i,new) -> do
+            res <- mapM (\w -> stepWire w dt i) ws'
             let filt (Right a, b) = Just (a,b)
                 filt _            = Nothing
                 resx = mapMaybe filt res
-            return (Right $ zip ids (fmap fst resx), shrinking (fmap snd resx))
-            
+            return (Right $ (fmap fst resx), dynamicSet creator $ (fmap snd resx) ++ (map creator new))
+
+shrinking :: (Monad m) => [Wire e m a b] -> Wire e m a [b]
+shrinking ws = dynamicSet undefined ws <<< arr (\a -> (a,[]))
                 
 {-manager ws' = mkGen $ \dt xs' -> do
             res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
@@ -187,6 +190,7 @@ circleRectCollision c r = do
         innerMaxX = maxX - rr
         innerMaxY = maxY - rr
 
+
 -- Circles and rectangles of game objects
 instance CircleShaped Circle where
   circle c = Just c
@@ -195,14 +199,14 @@ instance CircleShaped Ball where
   circle (Ball p _) = Just $ Circle p ballRadius
 
 instance CircleShaped Bullet where
-  circle (Bullet p) = Just $ Circle p bulletRadius
+  circle (Bullet _ p) = Just $ Circle p bulletRadius
 
 instance RoundedRectShaped Paddle where
   roundedRect (Paddle x) = Just $ RoundedRect (x,paddleYPos) (x+paddleWidth,paddleYPos+paddleHeight) paddleRadius
 
 instance RoundedRectShaped Block where
-  roundedRect (Block _ _ (Dying _))    = Nothing
-  roundedRect (Block _ (x,y) (Alive _)) = Just $ RoundedRect (x,y) (x+blockWidth,y+blockHeight) blockRadius
+  roundedRect (Block _ _ _ (Dying _))    = Nothing
+  roundedRect (Block _ _ (x,y) (Alive _)) = Just $ RoundedRect (x,y) (x+blockWidth,y+blockHeight) blockRadius
 
 -- drawing function, draw a game state
 draw :: GameState -> IO ()
@@ -218,19 +222,24 @@ draw (GameState paddle ball blocks bullets) = do
   setFillColor ctx paddleColor
   fillRoundedRect ctx (xPos paddle) paddleYPos paddleWidth paddleHeight paddleRadius
   mapM_ (drawBlock ctx) $ blocks
+  mapM_ (drawBullet ctx) $ bullets
   setFillColor ctx ballColor
   let Ball (x,y) _ = ball
   fillCircle ctx x y ballRadius
 
 drawBlock :: Context2D -> Block -> IO ()
-drawBlock ctx (Block t (x,y) (Alive lives)) = do
+drawBlock ctx (Block _ t (x,y) (Alive lives)) = do
   setFillColor ctx $ (if t == PowerBlock then powerBlockColor else normalBlockColor) !! (lives -1)
   fillRoundedRect ctx x y blockWidth blockHeight blockRadius
 
-drawBlock ctx (Block t (x,y) (Dying f)) = do
+drawBlock ctx (Block _ t (x,y) (Dying f)) = do
   setFillColor ctx $ ((if t == PowerBlock then powerBlockColor else normalBlockColor) !! 0) { alpha = f }
   fillRoundedRect ctx x y blockWidth blockHeight blockRadius
-  
+ 
+drawBullet :: Context2D -> Bullet -> IO ()
+drawBullet ctx (Bullet _ (x,y)) = do
+  setFillColor ctx bulletColor 
+  fillCircle ctx x y bulletRadius
 
 -- collsion detection
 fromMaybeList :: Ord a => [(a,Maybe b)] -> M.Map a b
@@ -238,8 +247,8 @@ fromMaybeList [] = M.empty
 fromMaybeList ((k,Nothing):xs) = fromMaybeList xs
 fromMaybeList ((k,Just v):xs) = M.insert k v (fromMaybeList xs)
 
-calcBallBlockColls :: Ball -> [(Int,Block)] -> M.Map Int Collision
-calcBallBlockColls ball = fromMaybeList . map (\(id,block) -> (id, circleRectCollision ball block))
+calcBallBlockColls :: Ball -> [Block] -> M.Map Int Collision
+calcBallBlockColls ball = fromMaybeList . map (\block -> (blockId block, circleRectCollision ball block))
 
 calcBallWallColls :: Ball -> [Collision]
 calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
@@ -251,6 +260,9 @@ calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
 calcBallPaddleColls :: Ball -> Paddle -> [Collision]
 calcBallPaddleColls b p = 
   catMaybes [circleRectCollision b p]
+
+createBullet :: Paddle -> Bullet
+createBullet (Paddle x) = Bullet (-1) (x + paddleWidth / 2.0, paddleYPos)
 
 -- Wires
 -- key wires
@@ -273,6 +285,13 @@ mainGameWire = proc input -> do
 
   paddle <- paddleWire -< input
 
+  let newFR old
+       | input == Update              = []
+       | input == KeyDown fireKeyCode = (createBullet paddle):old
+       | otherwise                    = old
+
+  fireRequests <- accum (flip ($)) [] -< newFR
+
   if input == Update then do
     rec
       let validCollDir (Collision n) = n <.> ballSpeed oldBall < 0.0
@@ -285,7 +304,10 @@ mainGameWire = proc input -> do
 
       blocks    <- blocksWire -< ballBlockColls
       oldBlocks <- delay $ [] -< blocks
-    returnA -< GameState paddle ball (map snd blocks) []
+      
+      bullets   <- bulletsWire -< (M.empty,fireRequests)
+      oldBullets <- delay $ [] -< bullets
+    returnA -< GameState paddle ball blocks bullets
   else
     empty -< ()
 
@@ -321,12 +343,24 @@ ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
 blockWire :: Block -> WireP (Maybe Collision) Block
 blockWire init = while blockAlive . accum1 update init -->
-                 Block (blockType init) (blockPos init) <$> (Dying <$> (pure 1.0) - (time / (pure 30.0))) . for 30.0
+                 Block (blockId init) (blockType init) (blockPos init) <$> (Dying <$> (pure 1.0) - (time / (pure 30.0))) . for 30.0
   where
   update old Nothing = old
-  update old@(Block _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }
-  blockAlive (Block _ _ (Alive l)) = l > 0
+  update old@(Block _ _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }
+  blockAlive (Block _ _ _ (Alive l)) = l > 0
 
 
-blocksWire :: WireP (M.Map Int Collision) [(Int,Block)]
-blocksWire = shrinking (map blockWire initBlocks)
+blocksWire :: WireP (M.Map Int Collision) [Block]
+blocksWire = shrinking $ map blockLookUpWire initBlocks
+  where
+  blockLookUpWire b = blockWire b <<< arr (M.lookup (blockId b))
+
+bulletWire :: Bullet -> WireP (Maybe Collision) Bullet
+bulletWire (Bullet id init) = while bulletAlive . (Bullet id  <$> (pure bulletSpeed >>> integral1_ init)) . while (isNothing)
+  where
+  bulletAlive (Bullet _ (x,y)) = y > 0.0
+
+bulletsWire :: WireP (M.Map Int Collision,[Bullet]) [Bullet]
+bulletsWire = dynamicSet create []
+  where
+  create b = bulletWire b <<< arr (M.lookup (bulletId b))
