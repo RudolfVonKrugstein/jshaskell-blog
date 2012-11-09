@@ -39,7 +39,7 @@ data GameState  = GameState {
                      ball    :: Ball,
                      blocks  :: [Block],
                      bullets :: [Bullet]}
-                  | StartScreen
+                  | StartScreen String
 
 -- Information about collision
 data Collision   = Collision { normal :: Vector } deriving (Show)
@@ -133,7 +133,7 @@ shrinkingMap ws = dynamicSetMap undefined ws <<< arr (\a -> (a,[]))
             
 
 -- type of the main wire
-type MainWireType = WireP InputEvent GameState
+type MainWireType = WireP InputEvent (Maybe GameState)
 
 -- startup
 main = setOnLoad initilize
@@ -165,7 +165,7 @@ update wire = do
   let (res, w') = stepWireP w 1.0 Update
   case res of
     Left err -> alert "Error!"
-    Right gs -> draw gs
+    Right (Just gs) -> draw gs
   writeIORef wire w'
 
 -- Collision utils
@@ -238,11 +238,11 @@ instance RoundedRectShaped Block where
 
 -- drawing function, draw a game state
 draw :: GameState -> IO ()
-draw StartScreen = do
+draw (StartScreen msg) = do
   ctx <- getContext2d canvasName
   clear ctx
   setFillColor ctx $ Color 0.0 0.0 0.0 1.0
-  fillText ctx "Press enter to start (click the canvas for input focus)" (screenWidth / 2.0 - 100.0) (screenHeight /2.0)
+  fillText ctx msg (screenWidth / 2.0 - 100.0) (screenHeight /2.0)
 
 draw (GameState paddle gun ball blocks bullets) = do
   ctx <- getContext2d canvasName
@@ -305,6 +305,14 @@ calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pai
 createBullet :: Paddle -> Bullet
 createBullet (Paddle x) = Bullet (x + paddleWidth / 2.0, paddleYPos)
 
+gameLost :: Maybe GameState -> Bool
+gameLost (Just (GameState _ _ (Ball (_,y) _) _ _)) = y > screenHeight
+gameLost _ = False
+
+gameWon :: Maybe GameState -> Bool
+gameWon (Just (GameState _ _ _ [] _)) = True
+gameWon _ = False
+
 -- Wires
 -- key wires
 keyDown :: Int -> EventP InputEvent
@@ -314,12 +322,21 @@ keyUp :: Int -> EventP InputEvent
 keyUp code = when (==KeyUp code)
 
 -- main wire
-mainWire :: MainWireType
-{-mainWire = F.fix (\start -> 
-             pure StartScreen . notE (keyDown startKeyCode) -->
-             mainGameWire -->
+startScreenWire :: String -> MainWireType
+startScreenWire msg = pure (Just $ StartScreen msg) . notE (keyDown startKeyCode)
+
+mainWire = F.fix (\start -> 
+             startScreenWire "Press Enter to start (click canvas to focus)" -->
+             (unless gameWon . ((unless gameLost . mainGameWire) --> (startScreenWire "You LOST!") --> start)) --> (startScreenWire "You WON!") -->
+             start)
+{-lostWire = startScreenWire "YouLost" --> inhibit [mainGameWire']
+wonWire  = startScreenWire "YouWon"  --> inhibit [mainGameWire']
+mainGameWire' = (unless gameWon --> inhibit [wonWire]) . (unless gameLost --> [lostWire]) mainGameWire
+
+mainWire = F.fix (\start -> 
+             startScreenWire "Press Enter to start (click canvas to focus)" -->
+             switchBy head mainGameWire'
              start)-}
-mainWire = mainGameWire
 
 mainGameWire :: MainWireType
 mainGameWire = proc input -> do
@@ -351,9 +368,9 @@ mainGameWire = proc input -> do
       
       bullets    <- bulletsWire -< (bulletBlockColls,newBullets)
       oldBullets <- delay $ []  -< bullets
-    returnA -< GameState paddle gun ball (map snd blocks) (map snd bullets)
+    returnA -< Just $ GameState paddle gun ball (map snd blocks) (map snd bullets)
   else
-    empty -< ()
+    returnA -< Nothing
 
 -- induvidial game objects
 paddleWire :: WireP InputEvent Paddle
