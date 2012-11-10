@@ -14,6 +14,9 @@ import qualified Data.Traversable as T
 import Data.Maybe
 import Data.List
 import qualified Data.Map as M
+import Data.Monoid
+import Control.Monad.Identity (Identity)
+import Control.Monad.Fix (MonadFix)
 
 -- Game Types
 -- Input events
@@ -133,7 +136,16 @@ shrinkingMap ws = dynamicSetMap undefined ws <<< arr (\a -> (a,[]))
             
 
 -- type of the main wire
-type MainWireType = WireP InputEvent (Maybe GameState)
+data GameEnd = Win | Loose | None
+instance Monoid GameEnd where
+  mempty = None
+  mappend x None = x
+  mappend None x = x
+  mappend _ Win = Win
+  mappend Win _ = Win
+  mappend _ _ = Loose
+
+type MainWireType = Wire GameEnd Identity InputEvent (Maybe GameState)
 
 -- startup
 main = setOnLoad initilize
@@ -315,10 +327,10 @@ gameWon _ = False
 
 -- Wires
 -- key wires
-keyDown :: Int -> EventP InputEvent
+keyDown :: (Monad m, Monoid e) => Int -> Event e m InputEvent
 keyDown code = when (==KeyDown code)
 
-keyUp :: Int -> EventP InputEvent
+keyUp :: (Monad m, Monoid e) => Int -> Event e m InputEvent
 keyUp code = when (==KeyUp code)
 
 -- main wire
@@ -373,43 +385,43 @@ mainGameWire = proc input -> do
     returnA -< Nothing
 
 -- induvidial game objects
-paddleWire :: WireP InputEvent Paddle
+paddleWire :: (Monad m, Monoid e) => Wire e m InputEvent Paddle
 paddleWire = Paddle <$> (integralLim1_ bound initPaddleXPos <<< (paddleSpeedWire &&& pure ()))
   where
   bound _ _ pos = max 0.0 $ min (screenWidth-paddleWidth) pos
 
-paddleSpeedWire :: WireP InputEvent Double 
+paddleSpeedWire :: (Monad m, Monoid e) => Wire e m InputEvent Double 
 paddleSpeedWire = (valueFromKeyDown leftKeyCode 0.0 (-paddleSpeed))
                   +
                   (valueFromKeyDown rightKeyCode 0.0 paddleSpeed)
   where
-  valueFromKeyDown :: Int -> a -> a -> WireP InputEvent a
+  valueFromKeyDown :: (Monad m, Monoid e) => Int -> a -> a -> Wire e m InputEvent a
   valueFromKeyDown code upValue downValue = F.fix (\start ->
                                                    pure upValue   . notE (keyDown code) -->
                                                    pure downValue . notE (keyUp code) -->
                                                    start)
 
-gunWire :: WireP ([Bullet],Int) ([Bullet],Gun)
+gunWire :: (MonadFix m) => Wire e m ([Bullet],Int) ([Bullet],Gun)
 gunWire = proc (bs,new) -> do
   rec
     let fires = take ammo bs
     ammo <- accum (+) (ammo initGun) -< new - (length fires)
   returnA -< (fires,Gun ammo)
 
-accum1Fold :: (b -> a -> b) -> b -> WireP [a] b
+accum1Fold :: (Monad m) => (b -> a -> b) -> b -> Wire e m [a] b
 accum1Fold f init = accum1 step init
   where
   step last as = foldl' f last as
 
-ballSpeedWire :: WireP [Collision] Vector
+ballSpeedWire :: (Monad m) => Wire e m [Collision] Vector
 ballSpeedWire = accum1Fold (collide) initBallSpeed
   where
   collide v0 (Collision n) = v0 - (2.0 * (n <.> v0)) *^ n
 
-ballWire :: WireP [Collision] Ball
+ballWire :: (Monad m) => Wire e m [Collision] Ball
 ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
 
-blockWire :: Block -> WireP (Maybe Collision) Block
+blockWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Block
 blockWire init = while blockAlive . accum1 update init -->
                  Block (blockType init) (blockPos init) <$> (Dying <$> (pure 1.0) - (time / (pure 30.0))) . for 30.0
   where
@@ -417,22 +429,22 @@ blockWire init = while blockAlive . accum1 update init -->
   update old@(Block _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }
   blockAlive (Block _ _ (Alive l)) = l > 0
 
-blockAmmoWire :: Block -> WireP (Maybe Collision) Int
+blockAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Int
 blockAmmoWire (Block PowerBlock _ _) = (pure 0) . while (isNothing) --> once . (pure 1) --> pure 0
 blockAmmoWire _ = (pure 0)
 
-blockWithAmmoWire :: Block -> WireP (Maybe Collision) (Int,Block)
+blockWithAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) (Int,Block)
 blockWithAmmoWire b = blockAmmoWire b &&& blockWire b
 
-blocksWire :: WireP (M.Map Int Collision) (Int,[(Int,Block)])
+blocksWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision) (Int,[(Int,Block)])
 blocksWire = (shrinkingMap $ map blockWithAmmoWire initBlocks) >>> (arr reorder)
   where
   reorder as = (sum $ map (fst . snd) as, map (\j -> (fst j, snd $ snd j)) as)
 
-bulletWire :: Bullet -> WireP (Maybe Collision) Bullet
+bulletWire :: (Monad m, Monoid e) => Bullet -> Wire e m (Maybe Collision) Bullet
 bulletWire (Bullet init) = while bulletAlive . (Bullet <$> (pure bulletSpeed >>> integral1_ init)) . while (isNothing)
   where
   bulletAlive (Bullet (x,y)) = y > 0.0
 
-bulletsWire :: WireP (M.Map Int Collision,[Bullet]) [(Int,Bullet)]
+bulletsWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision,[Bullet]) [(Int,Bullet)]
 bulletsWire = dynamicSetMap bulletWire []
