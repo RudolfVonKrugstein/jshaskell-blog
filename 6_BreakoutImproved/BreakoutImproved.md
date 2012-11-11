@@ -22,7 +22,13 @@ As a final note before I start: Being a haskell beginner, I might not do everyth
 
 Also I will explain some of [netwires][netwire] usage here, this is by no means a complete tutorial to [netwire][netwire]. One obvious reason for this is, that I myself do not (yet?) understand all the features and Ideas of netwire (remember, I am still a haskell beginner doing this for my own education) but maybe some of this will be useful for someone wanting to start with netwire.
 
-But first lets see how collision detection differs from the [last][last] post.
+To install netwire, just type
+
+```bash
+haste-inst install netwire
+```
+
+This will most likely fail on lifted-base and time. There is a (potentially dangerous) workaround [here][hasteWorkaround], that should work for now.
 
 # New Javascript functions
 
@@ -452,17 +458,174 @@ blocksWire = (shrinkingMap $ map blockWithAmmoWire initBlocks) >>> (arr reorder)
 
 The output of "(shrinkingMap $ map blockWithAmmoWire initBlocks)" is \[(id,(ammo,block))\] where "id" is the id of the corresponding block, "ammo" the ammo given by the block and "block" its state.
 
-But what we want is (sumAmmo, [(id,block)]) with sumAmmo being the sum over all ammo. That is what reaorder takes car of.
+But what we want is (sumAmmo, \[(id,block)\]) with sumAmmo being the sum over all ammo. That is what reaorder takes car of.
 
 ## Bullets
 
-[last]:
+Bullets simply move up while
+
+* They do not collide
+* They are not out of the screen
+
+```haskell
+bulletWire :: (Monad m, Monoid e) => Bullet -> Wire e m (Maybe Collision) Bullet
+bulletWire (Bullet init) = while bulletAlive . (Bullet <$> (pure bulletSpeed >>> integral1_ init)) . while (isNothing)
+  where
+  bulletAlive (Bullet (x,y)) = y > 0.0
+
+bulletsWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision,[Bullet]) [(Int,Bullet)]
+bulletsWire = dynamicSetMap bulletWire []
+```
+
+### Gun
+
+The gun gets a set of bullets as input (these are the fire requests) and an integer with the amount of new ammo. It outputs the bullets that really habe been fired and the gun state
+
+```haskell
+gunWire :: (MonadFix m) => Wire e m ([Bullet],Int) ([Bullet],Gun)
+gunWire = proc (bs,new) -> do
+  rec
+    let fires = take ammo bs
+    ammo <- accum (+) (ammo initGun) -< new - (length fires)
+  returnA -< (fires,Gun ammo)
+```
+
+## Collecting collision information
+
+We define some helper functions for collecting collisions betwen the ball, the paddle, the walls, blocks and bullets:
+
+```haskell
+fromMaybeList :: Ord a => [(a,Maybe b)] -> M.Map a b
+fromMaybeList [] = M.empty
+fromMaybeList ((k,Nothing):xs) = fromMaybeList xs
+fromMaybeList ((k,Just v):xs) = M.insert k v (fromMaybeList xs)
+
+calcBallBlockColls :: Ball -> [(Int,Block)] -> M.Map Int Collision
+calcBallBlockColls ball = fromMaybeList . map (\(id,block) -> (id,circleRoundedRectCollision ball block))
+
+calcBallWallColls :: Ball -> [Collision]
+calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
+  (bx <= 0          , Collision (1.0 , 0.0)),
+  (bx >= screenWidth, Collision (-1.0, 0.0)),
+  (by <= 0          , Collision (0.0 , 1.0))
+  ]
+
+calcBallPaddleColls :: Ball -> Paddle -> [Collision]
+calcBallPaddleColls b p =
+  maybeToList $ circleRoundedRectCollision b p
+
+pairUp :: [a] -> [b] -> [(a,b)]
+pairUp as bs = [(a,b) | a <- as, b <- bs]
+
+calcBlockBulletColls :: [(Int,Block)] -> [(Int,Bullet)] -> (M.Map Int Collision,M.Map Int Collision)
+calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pairUp blocks bullets
+  where
+  buildColls (blList, buList) ((blId,block), (buId, bullet)) = case circleRoundedRectCollision bullet block of
+                                                                    Nothing -> (blList, buList)
+                                                                    Just c  -> (M.insert blId c blList, M.insert buId c buList)
+```
+
+## Putting it all together, the main wire
+
+### Switching game state
+
+Let's first look at the outer wire, that manages when the game starts and when to show the start screen. It should behave like this:
+
+* In the beginnig it shows "Press Enter to start (click canvas to focus)". When the user pressed enter the game is started.
+* When the player looses, is shows "Sorry, you loose! Press Enter to restart." and lets the user press enter to restart.
+* Similar when the player wins, with the message "Congratulations, you won! Press Enter to restart."
+
+So when the game ends we need to switch differently depending on if the game was lost or won.
+Remember that the inhibition if wires can be used to switch wires (for example with "-->"). If we want to have different wire we have to encode this in the inhibition Type (see also this [thread][haskellbeginnersSwitchBy]):
+
+```haskell
+data GameEnd = Win | Loose | None
+instance Monoid GameEnd where
+  mempty = None
+  mappend x None = x
+  mappend None x = x
+  mappend _ Win = Win
+  mappend Win _ = Win
+  mappend _ _ = Loose
+
+type MainWireType = Wire GameEnd Identity InputEvent (Maybe GameState)
+```
+
+The inhibition value must be Monoid, because that is what most switches and events require.
+Now we can use this with switchBy:
+
+```haskell
+mainWire = switchBy start (start None)
+  where
+  start None = startScreenWire "Press Enter to start (click canvas to focus)" --> mainGameWire
+  start Win  = startScreenWire "Congratulations, you won! Press Enter to restart." --> mainGameWire
+  start Loose = startScreenWire "Sorry, you loose! Press Enter to restart." --> mainGameWire
+```
+
+Now the mainGameWire only has to inhibit when the game is lost, or won. This is done with these wires:
+
+```haskell
+looseWire :: (Monad m) => Wire GameEnd m Ball Ball
+looseWire = unless ballOut --> inhibit Loose
+  where
+  ballOut (Ball (x,y) _) = y > screenHeight
+
+winWire :: (Monad m) => Wire GameEnd m [Block] [Block]
+winWire = (once --> unless null) --> inhibit Win
+```
+
+### The main game
+
+This is the only place, where we use arrow syntax:
+
+```haskell
+mainGameWire :: MainWireType
+mainGameWire = proc input -> do
+
+  paddle <- paddleWire -< input
+
+  let newFR old
+       | input == Update              = []
+       | input == KeyDown fireKeyCode = (createBullet paddle):old
+       | otherwise                    = old
+
+  fireRequests <- accum (flip ($)) [] -< newFR
+
+  if input == Update then do
+    rec
+      let validCollDir (Collision n) = n <.> ballSpeed oldBall < 0.0
+          ballBlockColls                      = M.filter validCollDir $ calcBallBlockColls  oldBall oldBlocks
+          ballWallColls                       = calcBallWallColls   oldBall
+          ballPaddleColls                     = filter validCollDir $ calcBallPaddleColls oldBall paddle
+          (blockBulletColls,bulletBlockColls) = calcBlockBulletColls oldBlocks oldBullets
+
+      ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (M.elems ballBlockColls)
+      oldBall <- delay initBall -< ball
+      _ <- looseWire -< oldBall
+
+      (newAmmo,blocks)    <- blocksWire -< ballBlockColls `M.union` blockBulletColls
+      oldBlocks <- delay $ [] -< blocks
+      _ <- winWire -< (map snd oldBlocks)
+
+      (newBullets,gun) <- gunWire -< (fireRequests,newAmmo)
+
+      bullets    <- bulletsWire -< (bulletBlockColls,newBullets)
+      oldBullets <- delay $ []  -< bullets
+    returnA -< Just $ GameState paddle gun ball (map snd blocks) (map snd bullets)
+  else
+    returnA -< Nothing
+```
+
+[last]: http://jshaskell.blogspot.de/2012/09/breakout.html
 [this]:
-[netwire]:
-[netwireTutorial]:
-[hasellbeginners]:
+[netwire]: http://hackage.haskell.org/package/netwire
+[netwireTutorial]: http://hackage.haskell.org/packages/archive/netwire/4.0.5/doc/html/Control-Wire.html
+[haskellbeginners]: http://www.haskell.org/mailman/listinfo/beginners
 [maybeMonad]: http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad
-[haskellbeginnersDynamicSet]:
-[haskellbeginnersShrinking]:
+[haskellbeginnersEvents]: http://www.haskell.org/pipermail/beginners/2012-October/010739.html
+[haskellbeginnersDynamicSet]: http://www.haskell.org/pipermail/beginners/2012-November/010930.html
+[haskellbeginnersShrinking]: http://www.haskell.org/pipermail/beginners/2012-November/010901.html
+[haskellbeginnersSwitchBy]: http://www.haskell.org/pipermail/beginners/2012-November/010941.html
 [fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
-[hasteFromRational]: 
+[hasteFromRational]: https://github.com/valderman/haste-compiler/issues/32
+[hasteWorkaround]: https://github.com/valderman/haste-compiler/issues/28
