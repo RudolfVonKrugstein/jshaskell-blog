@@ -119,7 +119,7 @@ That should be clear.
 So how do we test a circle against a rounded rectangle?
 A rounded rectangle is rectangle where the corners have been replaced by quarter circles. We have do test against these circles or the "inner" rectangle depending on where the colliding circle is, see this picture:
 
-![Areas of rounded rectangle](reoundedRect.svg)
+![Areas of rounded rectangle](roundedRect.svg)
 
 When the center of the colliding circle is in one of the red areas, collision testing is done with the corresponding corner circles. Otherwise collision is done against the "unrounded" rectangle (which is the same as rounded rectangle when we not in one of the red areas). The normal is then determined by the normal of the closest rectangle side. Here is the code:
 
@@ -290,8 +290,8 @@ data GameState  = GameState {
 ```
 
 The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning, when the player won or lost).
-We gave the ball the ballSpeed property (which is not necessary for viewing the game state) because it will be needed outside the balls own wires later. You will see.
-
+We gave the ball the ballSpeed property (which is not necessary for viewing the game state) because it will be needed outside the balls own wires later. You will see. The Double parameter for a Dying block is the fade level (going from 1.0 to 0.0 as the block is removed).
+ 
 ## constants
 
 A lot of constants follow which define the properties of the game
@@ -338,3 +338,11 @@ canvasName   = "canvas4"
 ```
 
 The canvas name is the same name as defined in the outer html where the canvas is located.
+
+## Startup and key events
+
+As said earlier, we step the main wire on every key event. But besides that the key event and startup functions look very similar to the [last post][last].
+Also the drawing function has been extended to draw bullets and fading blocks. See [here][BreakoutImproved.hs] if you want to see the code.
+
+
+
