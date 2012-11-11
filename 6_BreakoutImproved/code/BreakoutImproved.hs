@@ -4,11 +4,12 @@
 module Main where
 
 import JavaScript
+import Collision
+import WireUtils
 import Data.IORef
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.VectorSpace
-import qualified Control.Monad as CM
 import qualified Data.Function as F
 import qualified Data.Traversable as T
 import Data.Maybe
@@ -22,9 +23,6 @@ import Control.Monad.Fix (MonadFix)
 -- Input events
 data InputEvent = KeyUp Int | KeyDown Int | Update
   deriving (Eq)
-
--- GameData
-type Vector = (Double, Double) -- thanks to vector-space we can do ^+^ and similar
 
 -- state of game objects
 data Paddle     = Paddle { xPos    :: Double }
@@ -43,14 +41,6 @@ data GameState  = GameState {
                      blocks  :: [Block],
                      bullets :: [Bullet]}
                   | StartScreen String
-
--- Information about collision
-data Collision   = Collision { normal :: Vector } deriving (Show)
-
-type Radius = Double
-data Circle = Circle { circlePos :: Vector, circleRadius :: Radius}
-data Rectangle   = Rectangle Vector Vector
-data RoundedRect = RoundedRect { rectMin :: Vector, rectMax :: Vector, rectRadius :: Radius}
 
 -- constants
 screenWidth      = 600.0
@@ -89,51 +79,8 @@ leftKeyCode  = 37
 rightKeyCode = 39
 startKeyCode = 13
 fireKeyCode  = 32
-canvasName   = "canvas5"
-
--- wire util
-dynamicSet :: (Monad m) => (c -> Wire e m a b) -> [Wire e m a b] ->  Wire e m (a, [c]) [b]
-dynamicSet creator ws' = mkGen $ \dt (i,new) -> do
-            res <- mapM (\w -> stepWire w dt i) ws'
-            let filt (Right a, b) = Just (a,b)
-                filt _            = Nothing
-                resx = mapMaybe filt res
-            return (Right $ (fmap fst resx), dynamicSet creator $ (fmap snd resx) ++ (map creator new))
-
-staticQueue :: (Monad m) => [a] -> Wire e m Int [a]
-staticQueue set = unfold give set
-  where
-  give s n = (take n s, drop n s)
-
-pairListsWith :: (Monad m) => [p] -> Wire e m [a] [(p,a)]
-pairListsWith pairs = proc as -> do
-  p <- staticQueue pairs  -< length as
-  returnA -< zip p as
-
-dynamicSetMap :: (Monad m) => (c -> Wire e m (Maybe a) b) -> [Wire e m (Maybe a) b] -> Wire e m (M.Map Int a, [c]) [(Int,b)]
-dynamicSetMap creator ws = dynamicSet creator' ws' . (second $ pairListsWith restKeys)
-  where
-  wireWithLookupAndKey :: (Monad m) => Int -> Wire e m (Maybe a) b -> Wire e m (M.Map Int a) (Int,b)
-  wireWithLookupAndKey i w = (pure i) &&& (w . (arr (M.lookup i)))
-  keys           = [0,1..]
-  restKeys       = drop (length ws) keys
-  ws'            = map (uncurry wireWithLookupAndKey) $ zip keys ws
-  creator' (i,c) = wireWithLookupAndKey i (creator c)
-  
-
-shrinking :: (Monad m) => [Wire e m a b] -> Wire e m a [b]
-shrinking ws = dynamicSet undefined ws <<< arr (\a -> (a,[]))
-
-shrinkingMap :: (Monad m) => [Wire e m (Maybe a) b] -> Wire e m (M.Map Int a) [(Int,b)]
-shrinkingMap ws = dynamicSetMap undefined ws <<< arr (\a -> (a,[]))
+canvasName   = "canvas4"
                 
-{-manager ws' = mkGen $ \dt xs' -> do
-            res <- mapM (\(w,x) -> stepWire w dt x) $ zip ws' xs'
-            let filt (Right a, b) = Just (a, b)
-                filt _           = Nothing
-                resx = mapMaybe filt res
-            return (Right $ (fmap fst) resx,manager (fmap snd resx))-}
-            
 
 -- type of the main wire
 data GameEnd = Win | Loose | None
@@ -180,61 +127,7 @@ update wire = do
     Right (Just gs) -> draw gs
   writeIORef wire w'
 
--- Collision utils
-class CircleShaped a where
-  circle      :: a -> Maybe Circle
-class RoundedRectShaped a where
-  roundedRect :: a -> Maybe RoundedRect
-
-circleCollision :: (CircleShaped a, CircleShaped b) => a -> b -> Maybe Collision
-circleCollision a b = do
-  (Circle p1 r1) <- circle a
-  (Circle p2 r2) <- circle b
-  let centerDiff = p2 ^-^ p1
-  CM.guard (centerDiff <.> centerDiff <= (r1 + r2) * (r1 + r2))
-  return $ Collision $ normalized centerDiff
-
-pointInRectangle    :: Vector -> Rectangle -> Bool
-pointInRectangle (px,py) (Rectangle (minX,minY) (maxX,maxY))
-  | px > maxX = False
-  | px < minX = False
-  | py > maxY = False
-  | py < minY = False
-  | otherwise = True
-
-circleRectCollision :: (CircleShaped a, RoundedRectShaped b) => a -> b -> Maybe Collision
-circleRectCollision c r = do
-  circle <- circle c
-  rect   <- roundedRect r
-  circleRectCollision' circle rect
-  where
-    circleRectCollision' circle@(Circle (cx,cy) cr) (RoundedRect (minX,minY) (maxX,maxY) rr)
-      -- test the corners
-      | cx <= innerMinX && cy <= innerMinY = circleCollision (Circle (innerMinX, innerMinY) rr) circle
-      | cx >= innerMaxX && cy <= innerMinY = circleCollision (Circle (innerMaxX, innerMinY) rr) circle
-      | cx >= innerMaxX && cy >= innerMaxY = circleCollision (Circle (innerMaxX, innerMaxY) rr) circle
-      | cx <= innerMinX && cy <= innerMinY = circleCollision (Circle (innerMinX, innerMaxY) rr) circle
-      -- test if collision with rectangle occured
-      | not $ pointInRectangle (cx,cy) (Rectangle ((minX-cr), (minY-cr)) ((maxX+cr), (maxY+cr))) = Nothing
-      -- collision definitly occured, find correct normal
-      | otherwise = Just $ fst $ minimumBy (\(_,a) (_,b) -> compare a b)
-                          [
-                          (Collision (-1.0,0.0), cx - minX),
-                          (Collision (1.0, 0.0), maxX - cx),
-                          (Collision (0.0,-1.0), cy - minY),
-                          (Collision (0.0, 1.0), maxY - cy)
-                          ]
-      where
-        innerMinX = minX + rr
-        innerMinY = minY + rr
-        innerMaxX = maxX - rr
-        innerMaxY = maxY - rr
-
-
 -- Circles and rectangles of game objects
-instance CircleShaped Circle where
-  circle c = Just c
-
 instance CircleShaped Ball where
   circle (Ball p _) = Just $ Circle p ballRadius
 
@@ -317,14 +210,6 @@ calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pai
 createBullet :: Paddle -> Bullet
 createBullet (Paddle x) = Bullet (x + paddleWidth / 2.0, paddleYPos)
 
-gameLost :: Maybe GameState -> Bool
-gameLost (Just (GameState _ _ (Ball (_,y) _) _ _)) = y > screenHeight
-gameLost _ = False
-
-gameWon :: Maybe GameState -> Bool
-gameWon (Just (GameState _ _ _ [] _)) = True
-gameWon _ = False
-
 -- Wires
 -- key wires
 keyDown :: (Monad m, Monoid e) => Int -> Event e m InputEvent
@@ -337,18 +222,11 @@ keyUp code = when (==KeyUp code)
 startScreenWire :: String -> MainWireType
 startScreenWire msg = pure (Just $ StartScreen msg) . notE (keyDown startKeyCode)
 
-mainWire = F.fix (\start -> 
-             startScreenWire "Press Enter to start (click canvas to focus)" -->
-             (unless gameWon . ((unless gameLost . mainGameWire) --> (startScreenWire "You LOST!") --> start)) --> (startScreenWire "You WON!") -->
-             start)
-{-lostWire = startScreenWire "YouLost" --> inhibit [mainGameWire']
-wonWire  = startScreenWire "YouWon"  --> inhibit [mainGameWire']
-mainGameWire' = (unless gameWon --> inhibit [wonWire]) . (unless gameLost --> [lostWire]) mainGameWire
-
-mainWire = F.fix (\start -> 
-             startScreenWire "Press Enter to start (click canvas to focus)" -->
-             switchBy head mainGameWire'
-             start)-}
+mainWire = switchBy start (start None)
+  where
+  start None = startScreenWire "Press Enter to start (click canvas to focus)" --> mainGameWire
+  start Win  = startScreenWire "Congratulations, you won! Press Enter to restart." --> mainGameWire
+  start Loose = startScreenWire "Sorry, you loose! Press Enter to restart." --> mainGameWire
 
 mainGameWire :: MainWireType
 mainGameWire = proc input -> do
@@ -372,9 +250,11 @@ mainGameWire = proc input -> do
 
       ball <- ballWire -< ballWallColls ++ ballPaddleColls ++ (M.elems ballBlockColls)
       oldBall <- delay initBall -< ball
+      _ <- looseWire -< oldBall
 
       (newAmmo,blocks)    <- blocksWire -< ballBlockColls `M.union` blockBulletColls
       oldBlocks <- delay $ [] -< blocks
+      _ <- winWire -< (map snd oldBlocks)
 
       (newBullets,gun) <- gunWire -< (fireRequests,newAmmo)
       
@@ -385,6 +265,14 @@ mainGameWire = proc input -> do
     returnA -< Nothing
 
 -- induvidial game objects
+looseWire :: (Monad m) => Wire GameEnd m Ball Ball
+looseWire = unless ballOut --> inhibit Loose
+  where
+  ballOut (Ball (x,y) _) = y > screenHeight
+
+winWire :: (Monad m) => Wire GameEnd m [Block] [Block]
+winWire = (once --> unless null) --> inhibit Win
+
 paddleWire :: (Monad m, Monoid e) => Wire e m InputEvent Paddle
 paddleWire = Paddle <$> (integralLim1_ bound initPaddleXPos <<< (paddleSpeedWire &&& pure ()))
   where
