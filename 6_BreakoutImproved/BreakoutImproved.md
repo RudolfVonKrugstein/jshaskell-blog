@@ -283,6 +283,7 @@ data GameState  = GameState {
 
 The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning, when the player won or lost).
 We gave the ball the ballSpeed property (which is not necessary for viewing the game state) because it will be needed outside the balls own wires later. You will see. The Double parameter for a Dying block is the fade level (going from 1.0 to 0.0 as the block is removed).
+A Block now also as a BlockType. A PowerBlock is a block that gives the player ammo when destroyed.
  
 ## constants
 
@@ -406,11 +407,54 @@ accum1Fold does the same as accum1 but takes a list as input over which it folds
 
 What happens when the ball collides with an object? Assuming the collision is fully elastic, the velocity along the collision normal is inverted.
 The velocity (v0) along the collision normal (n) is $\<n,v0\>$ (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
-To invert this part of v0, we have to substract this twice from v0. This gives us: v0 - (2.0 * (n \<.\> v0)) *^ n.
+To invert this part of v0, we have to substract this twice from v0. This gives us: v0 - (2.0 * (n \<.\> v0)) \*^ n.
 
 ## Blocks
 
+A block behaves as its initial state, removing a live whenever it is hit (its input is not Nothing).
+When the lives are out, the block changes into the Dying state. And fades out in 30.0 "time units". Afterwards the block wire inhibts (so it is removed from the set).
 
+```haskell
+blockWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Block
+blockWire init = while blockAlive . accum1 update init -->
+                 Block (blockType init) (blockPos init) <$> (Dying <$> (pure 1.0) - (time / (pure 30.0))) . for 30.0
+  where
+  update old Nothing = old
+  update old@(Block _ _ (Alive l)) _ = old { blockState = Alive (l - 1) }
+  blockAlive (Block _ _ (Alive l)) = l > 0
+```
+
+Notice the expression "(pure 1.0) - (time / (pure 30.0)))" for the fading level. We can use "-" und "/" fractional and Num.
+We could even leave out the "pure" and write "(1.0) - (time / (30.0)))". At present this does not work with haste because "framRational" needs some not yet supported primOps (see [here][hasteFromRational]).
+
+When a "PowerBlock" is destroyed, the ammo is support to gain ammo. Therefore there is a blockAmmoWire that returns the number of ammo the player should gain.
+For a normal block it returns 0 always. For a PowerBlock it returns 0 except the moment the block is destoryed (the input is not Nothing).
+
+```haskell
+blockAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Int
+blockAmmoWire (Block PowerBlock _ _) = (pure 0) . while (isNothing) --> once . (pure 1) --> pure 0
+blockAmmoWire _ = (pure 0)
+
+blockWithAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) (Int,Block)
+blockWithAmmoWire b = blockAmmoWire b &&& blockWire b
+```
+
+Isn't it nice how easily this can be expressed with "-->"?
+
+Now we create a set of blocks using "shrinkingMap":
+
+```haskell
+blocksWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision) (Int,[(Int,Block)])
+blocksWire = (shrinkingMap $ map blockWithAmmoWire initBlocks) >>> (arr reorder)
+  where
+  reorder as = (sum $ map (fst . snd) as, map (\j -> (fst j, snd $ snd j)) as)
+```
+
+The output of "(shrinkingMap $ map blockWithAmmoWire initBlocks)" is \[(id,(ammo,block))\] where "id" is the id of the corresponding block, "ammo" the ammo given by the block and "block" its state.
+
+But what we want is (sumAmmo, [(id,block)]) with sumAmmo being the sum over all ammo. That is what reaorder takes car of.
+
+## Bullets
 
 [last]:
 [this]:
@@ -421,3 +465,4 @@ To invert this part of v0, we have to substract this twice from v0. This gives u
 [haskellbeginnersDynamicSet]:
 [haskellbeginnersShrinking]:
 [fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
+[hasteFromRational]: 
