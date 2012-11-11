@@ -242,14 +242,6 @@ shrinkingMap ws = dynamicSetMap undefined ws <<< arr (\a -> (a,[]))
 To conclude these helper wires, I am not sure if these are the best choices but they work for now.
 
 
-[last]:
-[this]:
-[netwire]:
-[netwireTutorial]:
-[hasellbeginners]:
-[maybeMonad]: http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad
-[haskellbeginnersDynamicSet]:
-[haskellbeginnersShrinking]:
 
 # The Game
 
@@ -344,5 +336,88 @@ The canvas name is the same name as defined in the outer html where the canvas i
 As said earlier, we step the main wire on every key event. But besides that the key event and startup functions look very similar to the [last post][last].
 Also the drawing function has been extended to draw bullets and fading blocks. See [here][BreakoutImproved.hs] if you want to see the code.
 
+## Key events
+
+In netwire an Event is a Wire that behaves as the identity wire when the event occurs and inhibits when the event does not occure. There are many functions to create events in [netwire][netwireEvents]. Most require the inhibition type of the wire to be a monoid. That is very useful for switching on events. For now just accept that, you will see later.
+
+So we create events that produce when the input event is a certein key down or release event:
+
+```haskell
+keyPress :: (Monad m, Monoid e) => Int -> Event e m InputEvent
+keyPress code = when (==KeyDown code)
+
+keyRelease :: (Monad m, Monoid e) => Int -> Event e m InputEvent
+keyRelease code = when (==KeyUp code)
+```
+
+now we can write a wire that returns a different value depending on if a key is pressed:
+
+```haskell
+import qualified Data.Function as F
+
+valueFromKeyDown :: (Monad m, Monoid e) => Int -> a -> a -> Wire e m InputEvent a
+valueFromKeyDown code upValue downValue = F.fix (\start ->
+                                               pure upValue   . notE (keyPress code) -->
+                                               pure downValue . notE (keyRelease code) -->
+                                               start)
+```
+
+* The "-->" operator is the infix version of "andThen". It takes two wires and behaves like the first until that inhibits. After that it behaves like the second.
+* pure takes a value and makes a constant wire from it
+* if you do not know fix, read [here][fix]. Here it is used to loop back the chain of wires to the beginnig.
+
+## The paddle
+
+The speed of the paddle is direct transformation of the input state while the paddle wire integrates the paddle speed bounding it the the limits of the screen.
+
+```haskell
+paddleWire :: (Monad m, Monoid e) => Wire e m InputEvent Paddle
+paddleWire = Paddle <$> (integralLim1_ bound initPaddleXPos <<< (paddleSpeedWire &&& pure ()))
+  where
+  bound _ _ pos = max 0.0 $ min (screenWidth-paddleWidth) pos
+
+paddleSpeedWire :: (Monad m, Monoid e) => Wire e m InputEvent Double
+paddleSpeedWire = (valueFromKeyDown leftKeyCode 0.0 (-paddleSpeed))
+                  +
+                  (valueFromKeyDown rightKeyCode 0.0 paddleSpeed)
+```
+
+## The ball
+
+Similar as in the [last Post][last], the ball moves with constant speed and reacts to collision events.
+
+```haskell
+accum1Fold :: (Monad m) => (b -> a -> b) -> b -> Wire e m [a] b
+accum1Fold f init = accum1 step init
+  where
+  step last as = foldl' f last as
+
+ballSpeedWire :: (Monad m) => Wire e m [Collision] Vector
+ballSpeedWire = accum1Fold (collide) initBallSpeed
+  where
+  collide v0 (Collision n) = v0 - (2.0 * (n <.> v0)) *^ n
+
+ballWire :: (Monad m) => Wire e m [Collision] Ball
+ballWire = (Ball <$> integral1_ initBallPos) . ballSpeedWire <*> ballSpeedWire
+```
+
+Notice the use of accum1. In difference to accum, accum1 does not delay its output by one invocation.
+accum1Fold does the same as accum1 but takes a list as input over which it folds. Here it is used to fold over the incomming collision events.
+
+What happens when the ball collides with an object? Assuming the collision is fully elastic, the velocity along the collision normal is inverted.
+The velocity (v0) along the collision normal (n) is $\<n,v0\>$ (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
+To invert this part of v0, we have to substract this twice from v0. This gives us: v0 - (2.0 * (n \<.\> v0)) *^ n.
+
+## Blocks
 
 
+
+[last]:
+[this]:
+[netwire]:
+[netwireTutorial]:
+[hasellbeginners]:
+[maybeMonad]: http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad
+[haskellbeginnersDynamicSet]:
+[haskellbeginnersShrinking]:
+[fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
