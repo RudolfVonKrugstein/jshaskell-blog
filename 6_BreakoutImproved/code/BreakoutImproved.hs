@@ -184,7 +184,7 @@ fromMaybeList ((k,Nothing):xs) = fromMaybeList xs
 fromMaybeList ((k,Just v):xs) = M.insert k v (fromMaybeList xs)
 
 calcBallBlockColls :: Ball -> [(Int,Block)] -> M.Map Int Collision
-calcBallBlockColls ball = fromMaybeList . map (\(id,block) -> (id,circleRectCollision ball block))
+calcBallBlockColls ball = fromMaybeList . map (\(id,block) -> (id,circleRoundedRectCollision ball block))
 
 calcBallWallColls :: Ball -> [Collision]
 calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
@@ -195,7 +195,7 @@ calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
 
 calcBallPaddleColls :: Ball -> Paddle -> [Collision]
 calcBallPaddleColls b p = 
-  catMaybes [circleRectCollision b p]
+  catMaybes [circleRoundedRectCollision b p]
 
 pairUp :: [a] -> [b] -> [(a,b)]
 pairUp as bs = [(a,b) | a <- as, b <- bs]
@@ -203,7 +203,7 @@ pairUp as bs = [(a,b) | a <- as, b <- bs]
 calcBlockBulletColls :: [(Int,Block)] -> [(Int,Bullet)] -> (M.Map Int Collision,M.Map Int Collision)
 calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pairUp blocks bullets
   where
-  buildColls (blList, buList) ((blId,block), (buId, bullet)) = case circleRectCollision bullet block of
+  buildColls (blList, buList) ((blId,block), (buId, bullet)) = case circleRoundedRectCollision bullet block of
                                                                     Nothing -> (blList, buList)
                                                                     Just c  -> (M.insert blId c blList, M.insert buId c buList)
 

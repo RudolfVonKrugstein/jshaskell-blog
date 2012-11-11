@@ -25,6 +25,9 @@ class RoundedRectShaped a where
 instance CircleShaped Circle where
   circle c = Just c
 
+instance RoundedRectShaped RoundedRect where
+  roundedRect r = Just r
+
 circleCollision :: (CircleShaped a, CircleShaped b) => a -> b -> Maybe Collision
 circleCollision a b = do
   (Circle p1 r1) <- circle a
@@ -41,13 +44,13 @@ pointInRectangle (px,py) (Rectangle (minX,minY) (maxX,maxY))
   | py < minY = False
   | otherwise = True
 
-circleRectCollision :: (CircleShaped a, RoundedRectShaped b) => a -> b -> Maybe Collision
-circleRectCollision c r = do
+circleRoundedRectCollision :: (CircleShaped a, RoundedRectShaped b) => a -> b -> Maybe Collision
+circleRoundedRectCollision c r = do
   circle <- circle c
   rect   <- roundedRect r
-  circleRectCollision' circle rect
+  circleRoundedRectCollision' circle rect
   where
-    circleRectCollision' circle@(Circle (cx,cy) cr) (RoundedRect (minX,minY) (maxX,maxY) rr)
+    circleRoundedRectCollision' circle@(Circle (cx,cy) cr) (RoundedRect (minX,minY) (maxX,maxY) rr)
       --test the corners
       | cx <= innerMinX && cy <= innerMinY = circleCollision (Circle (innerMinX, innerMinY) rr) circle
       | cx >= innerMaxX && cy <= innerMinY = circleCollision (Circle (innerMaxX, innerMinY) rr) circle
