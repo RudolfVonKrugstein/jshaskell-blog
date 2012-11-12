@@ -2,10 +2,10 @@ Hi, welcome to the 6th article of this blog.
 
 In this blog post, the breakout example from the [last Post][last] has been improved, giving it more features:
 
-* The Paddle and Blocks have rounded edges. The ball bounces of them being depending on the surface normal where it hits.
+* The Paddle and Blocks have rounded edges. The ball bounces of them depending on the surface normal where it hits.
 * The blocks are fading out when destroyed.
-* The paddle can shoot to destroy blocks. In the beginning one shot is available, shots can be gained by destroying green blocks.
-* The game is aware when to player lost or won and displays this information when the game ends.
+* The paddle can shot to destroy blocks. When the game starts one shot is available, shots can be gained by destroying green blocks.
+* The game is aware when the player lost or won and displays this information when the game ends.
 
 But that is not all! Instead of using the simple Coroutines we are now using a full blown FRP library called [netwire][netwire]. But more about that later, here is the preview. As alwyas you have to click the canvas to get input focus. If you are not viewing this blog article on blogspot and the application does not work, try the original [aricle page][this].
 
@@ -14,13 +14,13 @@ But that is not all! Instead of using the simple Coroutines we are now using a f
 
 I had a lot of help over the [haskell beginners mailing list][haskellbeginners]. I will try to add links to the specific topics whenever I am writing something I had help with.
 
-As a final note before I start: Being a haskell beginner, I might not do everything here the best way. I encourage you to comment if you think something could be done better! I of course also encourage you to comment if you have any questions.
+As a final note before I start: Being a haskell beginner, I might not do everything here the best way. I encourage you to comment if you think something could be done better! Of course, I also encourage you to comment if you have any questions.
 
 # About Netwire
 
-[Netwire][netwire] is a arrowized functional reactive programming (AFRP) library for haskell and the version 4 of the library is recently be released on [hackage][netwire]. Since it uses Arrows, some we the things we did with Coroutines can be done the same way with netwires, but it has tons of new features. [Here][netwireTutorial] is a short introduction to netwire, but I will try to explain all the features when I use them.
+[Netwire][netwire] is a arrowized functional reactive programming (AFRP) library for haskell and the version 4 of the library has recently been released on [hackage][netwire]. Since it uses Arrows, some of the things we did with Coroutines can be done the same way with netwires, but it has tons of other features. [Here][netwireTutorial] is a short introduction to netwire, but I will try to explain all the features when I use them.
 
-Also I will explain some of [netwires][netwire] usage here, this is by no means a complete tutorial to [netwire][netwire]. One obvious reason for this is, that I myself do not (yet?) understand all the features and Ideas of netwire (remember, I am still a haskell beginner doing this for my own education) but maybe some of this will be useful for someone wanting to start with netwire.
+Also I will explain some of [netwires][netwire] usage here, this is by no means a complete tutorial to [netwire][netwire]. One obvious reason for this is, that I myself do not (yet?) understand all the features and Ideas of netwire (remember, I am still a haskell beginner doing this for my own education). Maybe some of this will be useful for someone wanting to start with [netwire][netwire].
 
 To install netwire, just type
 
@@ -628,6 +628,8 @@ If we would have used "accum" instead of "accum1" in a couple of places, the out
 I am getting more confortable with haskell and its getting easier for me to read haskell code. Netwire seems to be a nice library, but I feel like I have so far only scratched its surface. I wonder what cool things one could do if one would use the inner monad.
 Also I wonder how Arrowrized FRP compares with FRP without arrows. Unfortantly [reactive banana][reactiveBanana] does not yet work with haste. I had a quick peek at [elerea][elerea] but it also needs some PrimOps not supported by haste.
 
+Again: I encourage you to comment if you think something could be done better. For a lot of things I might not use a better alternative because I am simply not aware of it. After all I am still a haskell beginner.
+
 [last]: http://jshaskell.blogspot.de/2012/09/breakout.html
 [this]:
 [netwire]: http://hackage.haskell.org/package/netwire
@@ -643,3 +645,7 @@ Also I wonder how Arrowrized FRP compares with FRP without arrows. Unfortantly [
 [hasteWorkaround]: https://github.com/valderman/haste-compiler/issues/28
 [reactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana
 [elerea]: http://hackage.haskell.org/package/elerea
+[JavaScript.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/haste/JavaScript.hs
+[Collision.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/Collision.hs
+[WireUtils.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/WireUtils.hs
+[BreakoutImproved.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/BreakoutImproved.hs
