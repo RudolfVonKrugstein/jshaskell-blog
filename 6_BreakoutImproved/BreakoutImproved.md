@@ -623,6 +623,11 @@ Creating the collision data is done using the functions introduced earlier. Note
 
 If we would have used "accum" instead of "accum1" in a couple of places, the output of all the game objects would be delayed by 1 and we would not need the "old..." objects. This is personal preference, I find the use of the "old.." objects more transparent to what is happening.
 
+# Conclusion
+
+I am getting more confortable with haskell and its getting easier for me to read haskell code. Netwire seems to be a nice library, but I feel like I have so far only scratched its surface. I wonder what cool things one could do if one would use the inner monad.
+Also I wonder how Arrowrized FRP compares with FRP without arrows. Unfortantly [reactive banana][reactiveBanana] does not yet work with haste. I had a quick peek at [elerea][elerea] but it also needs some PrimOps not supported by haste.
+
 [last]: http://jshaskell.blogspot.de/2012/09/breakout.html
 [this]:
 [netwire]: http://hackage.haskell.org/package/netwire
@@ -636,3 +641,5 @@ If we would have used "accum" instead of "accum1" in a couple of places, the out
 [fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
 [hasteFromRational]: https://github.com/valderman/haste-compiler/issues/32
 [hasteWorkaround]: https://github.com/valderman/haste-compiler/issues/28
+[reactiveBanana]: 
+[elerea]: 
