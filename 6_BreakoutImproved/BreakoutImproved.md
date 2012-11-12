@@ -43,7 +43,7 @@ data Color = Color {red :: Double, green :: Double, blue :: Double, alpha :: Dou
 
 # Collision detection
 
-See [here][Collision.hs] for the complete code. We want to represent our objects as Circles (the ball, bullets) and rounded rectangles, so that define data structures for this:
+See [here][Collision.hs] for the complete code. We want to represent our objects as Circles (the ball, bullets) and rounded rectangles (the paddle, blocks), so we define data structures for this:
 
 ```haskell
 -- Information about collision
@@ -102,7 +102,7 @@ circleCollision a b = do
   return $ Collision $ normalized centerDiff
 ```
 
-It returns a "Maybe Collision" because a collision might not take.
+It returns a "Maybe Collision" because a collision might not take place.
 Notice the "do" notation. We are in the "Maybe" monad, which causes the function to automatically return Nothing if one of out circle shapes return Nothing (if you do not understand, see [here][maybeMonad]).
 So we are getting the vector between the center positions and testing its square against the square of the sums of the radian of the circles.
 The guard function (from Control.Monad) causes the monad to return with "Nothing" if the circles are not close enough.
@@ -173,15 +173,18 @@ data Wire e m a b
 ```
 
 The m parameter is the underlying monad. We will set it to Identity and be fine with it.
-"a" is the input type. Quoting from [here][netwireTutorial]: From these inputs it
+"a" is the input type. Quoting from [here][netwireTutorial]: From these inputs it (the wire)
 
 * either produces an output value of type "b" or inhibits with a value of type "e",
 * produces a new wire of type Wire e m a b.
 
+When a wire produces, it is the same as our Coroutines producing output.
+The possibility that a wire can inhibit is often used to switch to different wires. See [here][netwireTutorial]. We will explore this possibility a little bit further down.
+
 ## dynamicSet
 
 When a wire inhibits, there are several combinators which allows to switch to other wires (permanently or just for one instance).
-We will use this option to remove wires that inhibit. To create new wires we will use a creator function and an additional input.
+Here inhibiting wires will be removed from the set. To create new wires a creator function and an additional input will be used.
 
 ```haskell
 dynamicSet :: (Monad m) => (c -> Wire e m a b) -> [Wire e m a b] ->  Wire e m (a, [c]) [b]
@@ -194,11 +197,11 @@ dynamicSet creator ws' = mkGen $ \dt (i,new) -> do
 ```
 
 mkGen is passed a function that is turned into a wire. The parameters for this function are the time delta (dt) and the input (i,new) of the wire. We use the do notation because we are in the inner Monad "m" (of which we know nothing but that it is a monad).
-After we stepped all wires ("stepWire" steps a wire ,see [netwire tutorial][netwireTutorial]) we filter those that produced (by returning a right value) and rerun there outputs as list. The new wire is again a dynamics set with the ramaing wires and the newly created ones using the creator function.
+After we stepped all wires ("stepWire" steps a wire ,see [netwire tutorial][netwireTutorial]) we filter those that produced (by returning a right value) and return there outputs as list. The new wire is again a dynamics set with the ramaing wires and the newly created ones using the creator function.
 
 ## dynamicSetMap
 
-To use dynamic set in the breakout game, we assign each wire in the set a unique key (Int) and change the input to a Map that maps from the key to the input values of the inuvidual wires. Since a map lookup may fail, the input of the wires will be Maybes.
+To use dynamic set in the breakout game, we assign each wire in the set a unique key (Int) and change the input to a Map that maps from the key to the input values of the individual wires. Since a map lookup may fail, the input of the wires will be Maybes.
 
 To archive this we define a wire that takes a list as inputs and pairs it with a given (infinite) list (which will be our keys):
 
@@ -287,7 +290,7 @@ data GameState  = GameState {
                   | StartScreen String
 ```
 
-The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning, when the player won or lost).
+The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning and when the player won or lost).
 We gave the ball the ballSpeed property (which is not necessary for viewing the game state) because it will be needed outside the balls own wires later. You will see. The Double parameter for a Dying block is the fade level (going from 1.0 to 0.0 as the block is removed).
 A Block now also as a BlockType. A PowerBlock is a block that gives the player ammo when destroyed.
  
@@ -341,13 +344,13 @@ The canvas name is the same name as defined in the outer html where the canvas i
 ## Startup and key events
 
 As said earlier, we step the main wire on every key event. But besides that the key event and startup functions look very similar to the [last post][last].
-Also the drawing function has been extended to draw bullets and fading blocks. See [here][BreakoutImproved.hs] if you want to see the code.
+Also the drawing function has been extended to draw bullets and fading blocks. To produce the game state to draw, the wire is step with "Update". See [here][BreakoutImproved.hs] if you want to see the code.
 
 ## Key events
 
 In netwire an Event is a Wire that behaves as the identity wire when the event occurs and inhibits when the event does not occure. There are many functions to create events in [netwire][netwireEvents]. Most require the inhibition type of the wire to be a monoid. That is very useful for switching on events. For now just accept that, you will see later.
 
-So we create events that produce when the input event is a certein key down or release event:
+So we create events that produce when the input event is a certain key down or release event:
 
 ```haskell
 keyPress :: (Monad m, Monoid e) => Int -> Event e m InputEvent
@@ -412,7 +415,7 @@ Notice the use of accum1. In difference to accum, accum1 does not delay its outp
 accum1Fold does the same as accum1 but takes a list as input over which it folds. Here it is used to fold over the incomming collision events.
 
 What happens when the ball collides with an object? Assuming the collision is fully elastic, the velocity along the collision normal is inverted.
-The velocity (v0) along the collision normal (n) is $\<n,v0\>$ (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
+The velocity (v0) along the collision normal (n) is \<n,v0\> (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
 To invert this part of v0, we have to substract this twice from v0. This gives us: v0 - (2.0 * (n \<.\> v0)) \*^ n.
 
 ## Blocks
@@ -430,11 +433,11 @@ blockWire init = while blockAlive . accum1 update init -->
   blockAlive (Block _ _ (Alive l)) = l > 0
 ```
 
-Notice the expression "(pure 1.0) - (time / (pure 30.0)))" for the fading level. We can use "-" und "/" fractional and Num.
+Notice the expression "(pure 1.0) - (time / (pure 30.0)))" for the fading level. We can use "-" and "/" because wires are members of the Fractional and Num type classes.
 We could even leave out the "pure" and write "(1.0) - (time / (30.0)))". At present this does not work with haste because "framRational" needs some not yet supported primOps (see [here][hasteFromRational]).
 
-When a "PowerBlock" is destroyed, the ammo is support to gain ammo. Therefore there is a blockAmmoWire that returns the number of ammo the player should gain.
-For a normal block it returns 0 always. For a PowerBlock it returns 0 except the moment the block is destoryed (the input is not Nothing).
+When a "PowerBlock" is destroyed, the player is supposed to gain ammo. Therefore there is a blockAmmoWire that returns the number of ammo the player should gain.
+For a normal block it returns always 0. For a PowerBlock it returns 0 except the moment the block is destoryed (the input is not Nothing).
 
 ```haskell
 blockAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Int
@@ -477,9 +480,9 @@ bulletsWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision,[Bullet]) [(
 bulletsWire = dynamicSetMap bulletWire []
 ```
 
-### Gun
+## Gun
 
-The gun gets a set of bullets as input (these are the fire requests) and an integer with the amount of new ammo. It outputs the bullets that really habe been fired and the gun state
+The gun gets a set of bullets as input (these are the fire requests) and an integer with the amount of new ammo. It outputs the bullets that really have been fired and the gun state
 
 ```haskell
 gunWire :: (MonadFix m) => Wire e m ([Bullet],Int) ([Bullet],Gun)
@@ -525,9 +528,9 @@ calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pai
                                                                     Just c  -> (M.insert blId c blList, M.insert buId c buList)
 ```
 
-## Putting it all together, the main wire
+# Putting it all together, the main wire
 
-### Switching game state
+## Switching game state
 
 Let's first look at the outer wire, that manages when the game starts and when to show the start screen. It should behave like this:
 
@@ -551,7 +554,7 @@ instance Monoid GameEnd where
 type MainWireType = Wire GameEnd Identity InputEvent (Maybe GameState)
 ```
 
-The inhibition value must be Monoid, because that is what most switches and events require.
+The inhibition value must be a Monoid, because that is what most switches and events require.
 Now we can use this with switchBy:
 
 ```haskell
@@ -574,7 +577,9 @@ winWire :: (Monad m) => Wire GameEnd m [Block] [Block]
 winWire = (once --> unless null) --> inhibit Win
 ```
 
-### The main game
+The "once" in the win wire is necessary because in the first invocation of the main wire there are no blocks.
+
+## The main game
 
 This is the only place, where we use arrow syntax:
 
@@ -616,9 +621,9 @@ mainGameWire = proc input -> do
     returnA -< Nothing
 ```
 
-First the paddle is updated using the a input. The fireRequests are build by accumulating all presses of the fireing key. These are later filter in the gun, so that no more bullets are fired than there is ammo. When an Update event is issued the queue is purged. Remember that accum delays by one, so that when the input event is "Update", fireRequests is purged one invocation later.
+First the paddle is updated using the input. The fireRequests are build by accumulating all presses of the fireing key. These are later filtered in the gun, so that no more bullets are fired than there is ammo. When an Update event is issued the queue is purged. Remember that accum delays by one, so that when the input event is "Update", fireRequests is purged one invocation later.
 
-The rest of the wire is only invoked when the input event is "Update" (otherwise Nothing is returned). Note that we can use if two invoke a different wire depending on some condition.
+The rest of the wire is only invoked when the input event is "Update" (otherwise Nothing is returned). Note that we can use "if" to invoke a different wire depending on some condition.
 Creating the collision data is done using the functions introduced earlier. Note the filter with "validCollDir". Due to the rounded edges, it can happen that the ball collides with a block in a way that the ball is not outside the block the next frame. To prevent "double collisions" all those collision events, that are not directed against the moving direction of the ball are filtered.
 
 If we would have used "accum" instead of "accum1" in a couple of places, the output of all the game objects would be delayed by 1 and we would not need the "old..." objects. This is personal preference, I find the use of the "old.." objects more transparent to what is happening.
@@ -634,6 +639,7 @@ Again: I encourage you to comment if you think something could be done better. F
 [this]:
 [netwire]: http://hackage.haskell.org/package/netwire
 [netwireTutorial]: http://hackage.haskell.org/packages/archive/netwire/4.0.5/doc/html/Control-Wire.html
+[netwireEvents]: http://hackage.haskell.org/packages/archive/netwire/4.0.5/doc/html/Control-Wire-Prefab-Event.html
 [haskellbeginners]: http://www.haskell.org/mailman/listinfo/beginners
 [maybeMonad]: http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad
 [haskellbeginnersEvents]: http://www.haskell.org/pipermail/beginners/2012-October/010739.html
