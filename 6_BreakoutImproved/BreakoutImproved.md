@@ -125,7 +125,7 @@ That should be clear.
 So how do we test a circle against a rounded rectangle?
 A rounded rectangle is rectangle where the corners have been replaced by quarter circles. We have do test against these circles or the "inner" rectangle depending on where the colliding circle is, see this picture:
 
-![Areas of rounded rectangle](https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/6_BreakoutImproved/roundedRect.svg)
+![Areas of rounded rectangle](https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/6_BreakoutImproved/roundedRect.png)
 
 When the center of the colliding circle is in one of the red areas, collision testing is done with the corresponding corner circles. Otherwise collision is done against the "unrounded" rectangle (which is the same as rounded rectangle when we not in one of the red areas). The normal is then determined by the normal of the closest rectangle side. Here is the code:
 
