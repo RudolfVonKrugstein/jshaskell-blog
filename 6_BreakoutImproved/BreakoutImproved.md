@@ -641,5 +641,5 @@ Also I wonder how Arrowrized FRP compares with FRP without arrows. Unfortantly [
 [fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
 [hasteFromRational]: https://github.com/valderman/haste-compiler/issues/32
 [hasteWorkaround]: https://github.com/valderman/haste-compiler/issues/28
-[reactiveBanana]: 
-[elerea]: 
+[reactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana
+[elerea]: http://hackage.haskell.org/package/elerea
