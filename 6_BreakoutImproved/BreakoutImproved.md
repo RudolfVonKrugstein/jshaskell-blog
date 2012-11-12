@@ -616,6 +616,13 @@ mainGameWire = proc input -> do
     returnA -< Nothing
 ```
 
+First the paddle is updated using the a input. The fireRequests are build by accumulating all presses of the fireing key. These are later filter in the gun, so that no more bullets are fired than there is ammo. When an Update event is issued the queue is purged. Remember that accum delays by one, so that when the input event is "Update", fireRequests is purged one invocation later.
+
+The rest of the wire is only invoked when the input event is "Update" (otherwise Nothing is returned). Note that we can use if two invoke a different wire depending on some condition.
+Creating the collision data is done using the functions introduced earlier. Note the filter with "validCollDir". Due to the rounded edges, it can happen that the ball collides with a block in a way that the ball is not outside the block the next frame. To prevent "double collisions" all those collision events, that are not directed against the moving direction of the ball are filtered.
+
+If we would have used "accum" instead of "accum1" in a couple of places, the output of all the game objects would be delayed by 1 and we would not need the "old..." objects. This is personal preference, I find the use of the "old.." objects more transparent to what is happening.
+
 [last]: http://jshaskell.blogspot.de/2012/09/breakout.html
 [this]:
 [netwire]: http://hackage.haskell.org/package/netwire
