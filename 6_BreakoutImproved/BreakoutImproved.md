@@ -2,10 +2,10 @@ Hi, welcome to the 6th article of this blog.
 
 In this blog post, the breakout example from the [last Post][last] has been improved, giving it more features:
 
-* The Paddle and Blocks have rounded edges. The ball bounces of them being depending on the surface normal where it hits.
+* The Paddle and Blocks have rounded edges. The ball bounces of them depending on the surface normal where it hits.
 * The blocks are fading out when destroyed.
-* The paddle can shoot to destroy blocks. In the beginning one shot is available, shots can be gained by destroying green blocks.
-* The game is aware when to player lost or won and displays this information when the game ends.
+* The paddle can shot to destroy blocks. When the game starts one shot is available, shots can be gained by destroying green blocks.
+* The game is aware when the player lost or won and displays this information when the game ends.
 
 But that is not all! Instead of using the simple Coroutines we are now using a full blown FRP library called [netwire][netwire]. But more about that later, here is the preview. As alwyas you have to click the canvas to get input focus. If you are not viewing this blog article on blogspot and the application does not work, try the original [aricle page][this].
 
@@ -14,13 +14,13 @@ But that is not all! Instead of using the simple Coroutines we are now using a f
 
 I had a lot of help over the [haskell beginners mailing list][haskellbeginners]. I will try to add links to the specific topics whenever I am writing something I had help with.
 
-As a final note before I start: Being a haskell beginner, I might not do everything here the best way. I encourage you to comment if you think something could be done better! I of course also encourage you to comment if you have any questions.
+As a final note before I start: Being a haskell beginner, I might not do everything here the best way. I encourage you to comment if you think something could be done better! Of course, I also encourage you to comment if you have any questions.
 
 # About Netwire
 
-[Netwire][netwire] is a arrowized functional reactive programming (AFRP) library for haskell and the version 4 of the library is recently be released on [hackage][netwire]. Since it uses Arrows, some we the things we did with Coroutines can be done the same way with netwires, but it has tons of new features. [Here][netwireTutorial] is a short introduction to netwire, but I will try to explain all the features when I use them.
+[Netwire][netwire] is a arrowized functional reactive programming (AFRP) library for haskell and the version 4 of the library has recently been released on [hackage][netwire]. Since it uses Arrows, some of the things we did with Coroutines can be done the same way with netwires, but it has tons of other features. [Here][netwireTutorial] is a short introduction to netwire, but I will try to explain all the features when I use them.
 
-Also I will explain some of [netwires][netwire] usage here, this is by no means a complete tutorial to [netwire][netwire]. One obvious reason for this is, that I myself do not (yet?) understand all the features and Ideas of netwire (remember, I am still a haskell beginner doing this for my own education) but maybe some of this will be useful for someone wanting to start with netwire.
+Also I will explain some of [netwires][netwire] usage here, this is by no means a complete tutorial to [netwire][netwire]. One obvious reason for this is, that I myself do not (yet?) understand all the features and Ideas of netwire (remember, I am still a haskell beginner doing this for my own education). Maybe some of this will be useful for someone wanting to start with [netwire][netwire].
 
 To install netwire, just type
 
@@ -43,7 +43,7 @@ data Color = Color {red :: Double, green :: Double, blue :: Double, alpha :: Dou
 
 # Collision detection
 
-See [here][Collision.hs] for the complete code. We want to represent our objects as Circles (the ball, bullets) and rounded rectangles, so that define data structures for this:
+See [here][Collision.hs] for the complete code. We want to represent our objects as Circles (the ball, bullets) and rounded rectangles (the paddle, blocks), so we define data structures for this:
 
 ```haskell
 -- Information about collision
@@ -102,7 +102,7 @@ circleCollision a b = do
   return $ Collision $ normalized centerDiff
 ```
 
-It returns a "Maybe Collision" because a collision might not take.
+It returns a "Maybe Collision" because a collision might not take place.
 Notice the "do" notation. We are in the "Maybe" monad, which causes the function to automatically return Nothing if one of out circle shapes return Nothing (if you do not understand, see [here][maybeMonad]).
 So we are getting the vector between the center positions and testing its square against the square of the sums of the radian of the circles.
 The guard function (from Control.Monad) causes the monad to return with "Nothing" if the circles are not close enough.
@@ -125,7 +125,7 @@ That should be clear.
 So how do we test a circle against a rounded rectangle?
 A rounded rectangle is rectangle where the corners have been replaced by quarter circles. We have do test against these circles or the "inner" rectangle depending on where the colliding circle is, see this picture:
 
-![Areas of rounded rectangle](roundedRect.svg)
+![Areas of rounded rectangle](https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/6_BreakoutImproved/roundedRect.png)
 
 When the center of the colliding circle is in one of the red areas, collision testing is done with the corresponding corner circles. Otherwise collision is done against the "unrounded" rectangle (which is the same as rounded rectangle when we not in one of the red areas). The normal is then determined by the normal of the closest rectangle side. Here is the code:
 
@@ -173,15 +173,18 @@ data Wire e m a b
 ```
 
 The m parameter is the underlying monad. We will set it to Identity and be fine with it.
-"a" is the input type. Quoting from [here][netwireTutorial]: From these inputs it
+"a" is the input type. Quoting from [here][netwireTutorial]: From these inputs it (the wire)
 
 * either produces an output value of type "b" or inhibits with a value of type "e",
 * produces a new wire of type Wire e m a b.
 
+When a wire produces, it is the same as our Coroutines producing output.
+The possibility that a wire can inhibit is often used to switch to different wires. See [here][netwireTutorial]. We will explore this possibility a little bit further down.
+
 ## dynamicSet
 
 When a wire inhibits, there are several combinators which allows to switch to other wires (permanently or just for one instance).
-We will use this option to remove wires that inhibit. To create new wires we will use a creator function and an additional input.
+Here inhibiting wires will be removed from the set. To create new wires a creator function and an additional input will be used.
 
 ```haskell
 dynamicSet :: (Monad m) => (c -> Wire e m a b) -> [Wire e m a b] ->  Wire e m (a, [c]) [b]
@@ -194,11 +197,11 @@ dynamicSet creator ws' = mkGen $ \dt (i,new) -> do
 ```
 
 mkGen is passed a function that is turned into a wire. The parameters for this function are the time delta (dt) and the input (i,new) of the wire. We use the do notation because we are in the inner Monad "m" (of which we know nothing but that it is a monad).
-After we stepped all wires ("stepWire" steps a wire ,see [netwire tutorial][netwireTutorial]) we filter those that produced (by returning a right value) and rerun there outputs as list. The new wire is again a dynamics set with the ramaing wires and the newly created ones using the creator function.
+After we stepped all wires ("stepWire" steps a wire ,see [netwire tutorial][netwireTutorial]) we filter those that produced (by returning a right value) and return there outputs as list. The new wire is again a dynamics set with the ramaing wires and the newly created ones using the creator function.
 
 ## dynamicSetMap
 
-To use dynamic set in the breakout game, we assign each wire in the set a unique key (Int) and change the input to a Map that maps from the key to the input values of the inuvidual wires. Since a map lookup may fail, the input of the wires will be Maybes.
+To use dynamic set in the breakout game, we assign each wire in the set a unique key (Int) and change the input to a Map that maps from the key to the input values of the individual wires. Since a map lookup may fail, the input of the wires will be Maybes.
 
 To archive this we define a wire that takes a list as inputs and pairs it with a given (infinite) list (which will be our keys):
 
@@ -287,7 +290,7 @@ data GameState  = GameState {
                   | StartScreen String
 ```
 
-The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning, when the player won or lost).
+The StartScreen constructor of the GameState is to show a message when the game is not running (in the beginning and when the player won or lost).
 We gave the ball the ballSpeed property (which is not necessary for viewing the game state) because it will be needed outside the balls own wires later. You will see. The Double parameter for a Dying block is the fade level (going from 1.0 to 0.0 as the block is removed).
 A Block now also as a BlockType. A PowerBlock is a block that gives the player ammo when destroyed.
  
@@ -341,13 +344,13 @@ The canvas name is the same name as defined in the outer html where the canvas i
 ## Startup and key events
 
 As said earlier, we step the main wire on every key event. But besides that the key event and startup functions look very similar to the [last post][last].
-Also the drawing function has been extended to draw bullets and fading blocks. See [here][BreakoutImproved.hs] if you want to see the code.
+Also the drawing function has been extended to draw bullets and fading blocks. To produce the game state to draw, the wire is step with "Update". See [here][BreakoutImproved.hs] if you want to see the code.
 
 ## Key events
 
 In netwire an Event is a Wire that behaves as the identity wire when the event occurs and inhibits when the event does not occure. There are many functions to create events in [netwire][netwireEvents]. Most require the inhibition type of the wire to be a monoid. That is very useful for switching on events. For now just accept that, you will see later.
 
-So we create events that produce when the input event is a certein key down or release event:
+So we create events that produce when the input event is a certain key down or release event:
 
 ```haskell
 keyPress :: (Monad m, Monoid e) => Int -> Event e m InputEvent
@@ -412,7 +415,7 @@ Notice the use of accum1. In difference to accum, accum1 does not delay its outp
 accum1Fold does the same as accum1 but takes a list as input over which it folds. Here it is used to fold over the incomming collision events.
 
 What happens when the ball collides with an object? Assuming the collision is fully elastic, the velocity along the collision normal is inverted.
-The velocity (v0) along the collision normal (n) is $\<n,v0\>$ (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
+The velocity (v0) along the collision normal (n) is \<n,v0\> (the scalar product of n and v0). Expressed with vector space, this is n \<.\> v0.
 To invert this part of v0, we have to substract this twice from v0. This gives us: v0 - (2.0 * (n \<.\> v0)) \*^ n.
 
 ## Blocks
@@ -430,11 +433,11 @@ blockWire init = while blockAlive . accum1 update init -->
   blockAlive (Block _ _ (Alive l)) = l > 0
 ```
 
-Notice the expression "(pure 1.0) - (time / (pure 30.0)))" for the fading level. We can use "-" und "/" fractional and Num.
+Notice the expression "(pure 1.0) - (time / (pure 30.0)))" for the fading level. We can use "-" and "/" because wires are members of the Fractional and Num type classes.
 We could even leave out the "pure" and write "(1.0) - (time / (30.0)))". At present this does not work with haste because "framRational" needs some not yet supported primOps (see [here][hasteFromRational]).
 
-When a "PowerBlock" is destroyed, the ammo is support to gain ammo. Therefore there is a blockAmmoWire that returns the number of ammo the player should gain.
-For a normal block it returns 0 always. For a PowerBlock it returns 0 except the moment the block is destoryed (the input is not Nothing).
+When a "PowerBlock" is destroyed, the player is supposed to gain ammo. Therefore there is a blockAmmoWire that returns the number of ammo the player should gain.
+For a normal block it returns always 0. For a PowerBlock it returns 0 except the moment the block is destoryed (the input is not Nothing).
 
 ```haskell
 blockAmmoWire :: (Monad m, Monoid e) => Block -> Wire e m (Maybe Collision) Int
@@ -477,9 +480,9 @@ bulletsWire :: (Monad m, Monoid e) => Wire e m (M.Map Int Collision,[Bullet]) [(
 bulletsWire = dynamicSetMap bulletWire []
 ```
 
-### Gun
+## Gun
 
-The gun gets a set of bullets as input (these are the fire requests) and an integer with the amount of new ammo. It outputs the bullets that really habe been fired and the gun state
+The gun gets a set of bullets as input (these are the fire requests) and an integer with the amount of new ammo. It outputs the bullets that really have been fired and the gun state
 
 ```haskell
 gunWire :: (MonadFix m) => Wire e m ([Bullet],Int) ([Bullet],Gun)
@@ -525,9 +528,9 @@ calcBlockBulletColls blocks bullets = foldl' buildColls (M.empty, M.empty) $ pai
                                                                     Just c  -> (M.insert blId c blList, M.insert buId c buList)
 ```
 
-## Putting it all together, the main wire
+# Putting it all together, the main wire
 
-### Switching game state
+## Switching game state
 
 Let's first look at the outer wire, that manages when the game starts and when to show the start screen. It should behave like this:
 
@@ -551,7 +554,7 @@ instance Monoid GameEnd where
 type MainWireType = Wire GameEnd Identity InputEvent (Maybe GameState)
 ```
 
-The inhibition value must be Monoid, because that is what most switches and events require.
+The inhibition value must be a Monoid, because that is what most switches and events require.
 Now we can use this with switchBy:
 
 ```haskell
@@ -574,7 +577,9 @@ winWire :: (Monad m) => Wire GameEnd m [Block] [Block]
 winWire = (once --> unless null) --> inhibit Win
 ```
 
-### The main game
+The "once" in the win wire is necessary because in the first invocation of the main wire there are no blocks.
+
+## The main game
 
 This is the only place, where we use arrow syntax:
 
@@ -616,10 +621,25 @@ mainGameWire = proc input -> do
     returnA -< Nothing
 ```
 
+First the paddle is updated using the input. The fireRequests are build by accumulating all presses of the fireing key. These are later filtered in the gun, so that no more bullets are fired than there is ammo. When an Update event is issued the queue is purged. Remember that accum delays by one, so that when the input event is "Update", fireRequests is purged one invocation later.
+
+The rest of the wire is only invoked when the input event is "Update" (otherwise Nothing is returned). Note that we can use "if" to invoke a different wire depending on some condition.
+Creating the collision data is done using the functions introduced earlier. Note the filter with "validCollDir". Due to the rounded edges, it can happen that the ball collides with a block in a way that the ball is not outside the block the next frame. To prevent "double collisions" all those collision events, that are not directed against the moving direction of the ball are filtered.
+
+If we would have used "accum" instead of "accum1" in a couple of places, the output of all the game objects would be delayed by 1 and we would not need the "old..." objects. This is personal preference, I find the use of the "old.." objects more transparent to what is happening.
+
+# Conclusion
+
+I am getting more confortable with haskell and its getting easier for me to read haskell code. Netwire seems to be a nice library, but I feel like I have so far only scratched its surface. I wonder what cool things one could do if one would use the inner monad.
+Also I wonder how Arrowrized FRP compares with FRP without arrows. Unfortantly [reactive banana][reactiveBanana] does not yet work with haste. I had a quick peek at [elerea][elerea] but it also needs some PrimOps not supported by haste.
+
+Again: I encourage you to comment if you think something could be done better. For a lot of things I might not use a better alternative because I am simply not aware of it. After all I am still a haskell beginner.
+
 [last]: http://jshaskell.blogspot.de/2012/09/breakout.html
-[this]:
+[this]: http://jshaskell.blogspot.de/2012/11/breakout-improved-and-with-netwire.html
 [netwire]: http://hackage.haskell.org/package/netwire
 [netwireTutorial]: http://hackage.haskell.org/packages/archive/netwire/4.0.5/doc/html/Control-Wire.html
+[netwireEvents]: http://hackage.haskell.org/packages/archive/netwire/4.0.5/doc/html/Control-Wire-Prefab-Event.html
 [haskellbeginners]: http://www.haskell.org/mailman/listinfo/beginners
 [maybeMonad]: http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad
 [haskellbeginnersEvents]: http://www.haskell.org/pipermail/beginners/2012-October/010739.html
@@ -629,3 +649,9 @@ mainGameWire = proc input -> do
 [fix]: http://en.wikibooks.org/wiki/Haskell/Fix_and_recursion
 [hasteFromRational]: https://github.com/valderman/haste-compiler/issues/32
 [hasteWorkaround]: https://github.com/valderman/haste-compiler/issues/28
+[reactiveBanana]: http://www.haskell.org/haskellwiki/Reactive-banana
+[elerea]: http://hackage.haskell.org/package/elerea
+[JavaScript.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/haste/JavaScript.hs
+[Collision.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/Collision.hs
+[WireUtils.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/WireUtils.hs
+[BreakoutImproved.hs]: https://github.com/RudolfVonKrugstein/jshaskell-blog/blob/master/6_BreakoutImproved/code/BreakoutImproved.hs
