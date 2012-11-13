@@ -195,7 +195,7 @@ calcBallWallColls (Ball (bx,by) _) = map snd $ filter (fst) $ [
 
 calcBallPaddleColls :: Ball -> Paddle -> [Collision]
 calcBallPaddleColls b p = 
-  catMaybes [circleRoundedRectCollision b p]
+  maybeToList $ circleRoundedRectCollision b p
 
 pairUp :: [a] -> [b] -> [(a,b)]
 pairUp as bs = [(a,b) | a <- as, b <- bs]
@@ -212,15 +212,20 @@ createBullet (Paddle x) = Bullet (x + paddleWidth / 2.0, paddleYPos)
 
 -- Wires
 -- key wires
-keyDown :: (Monad m, Monoid e) => Int -> Event e m InputEvent
-keyDown code = when (==KeyDown code)
+keyPress :: (Monad m, Monoid e) => Int -> Event e m InputEvent
+keyPress code = when (==KeyDown code)
 
-keyUp :: (Monad m, Monoid e) => Int -> Event e m InputEvent
-keyUp code = when (==KeyUp code)
+keyRelease :: (Monad m, Monoid e) => Int -> Event e m InputEvent
+keyRelease code = when (==KeyUp code)
 
+valueFromKeyDown :: (Monad m, Monoid e) => Int -> a -> a -> Wire e m InputEvent a
+valueFromKeyDown code upValue downValue = F.fix (\start ->
+											   pure upValue   . notE (keyPress code) -->
+											   pure downValue . notE (keyRelease code) -->
+											   start)
 -- main wire
 startScreenWire :: String -> MainWireType
-startScreenWire msg = pure (Just $ StartScreen msg) . notE (keyDown startKeyCode)
+startScreenWire msg = pure (Just $ StartScreen msg) . notE (keyPress startKeyCode)
 
 mainWire = switchBy start (start None)
   where
@@ -282,12 +287,6 @@ paddleSpeedWire :: (Monad m, Monoid e) => Wire e m InputEvent Double
 paddleSpeedWire = (valueFromKeyDown leftKeyCode 0.0 (-paddleSpeed))
                   +
                   (valueFromKeyDown rightKeyCode 0.0 paddleSpeed)
-  where
-  valueFromKeyDown :: (Monad m, Monoid e) => Int -> a -> a -> Wire e m InputEvent a
-  valueFromKeyDown code upValue downValue = F.fix (\start ->
-                                                   pure upValue   . notE (keyDown code) -->
-                                                   pure downValue . notE (keyUp code) -->
-                                                   start)
 
 gunWire :: (MonadFix m) => Wire e m ([Bullet],Int) ([Bullet],Gun)
 gunWire = proc (bs,new) -> do
