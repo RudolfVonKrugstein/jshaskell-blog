@@ -59,7 +59,8 @@ Configure ghc (for now unregistered, if we do not do this the compiled haskell p
     perl boot
     ./configure --target=arm-linux-androideabi --enable-unregisterised
 
-and compile:
+If you want to make a registerised build, leave out the --enable-unregisterised parameter. But for me, the executables created by the compiler with registerised build segfault.
+Now compile:
 
     make
 
@@ -103,6 +104,8 @@ with
     #define HTYPE_FLOAT Float
 
 and do make again.
+
+Now you can use ./inplace/bin/ghc-stage1 for compiling your haskell files to executable which can be exectued on the android device.
 
 [add-terminfo]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/add-terminfo.patch
 [mtriple]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/mtriple.patch
