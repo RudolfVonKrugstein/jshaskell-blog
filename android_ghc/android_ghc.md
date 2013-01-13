@@ -29,6 +29,9 @@ Some more patches are needed!
 To inform llvm of the target architecture, apply [mtriple.patch][mtriple].
 I wonder if one should also add a data layout here???
 
+Some functions are inline in android, and we need to cange to ffi in base a little bit (creating non inline wrapper functions which can be called).
+In libraries/base: [base-inline-functions.patch][base-inline-functions]
+
 In the ndk headers, winsize is defined in terminfo.h.
 in libraries/haskeline: [add-terminfo.patch][add-terminfo]
 
@@ -113,3 +116,4 @@ Now you can use ./inplace/bin/ghc-stage1 for compiling your haskell files to exe
 [mtriple]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/mtriple.patch
 [offset]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/offset.patch
 [unix-posix]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/unix-posix.patch
+[base-inline-functions]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/base-inline-functions.patch
