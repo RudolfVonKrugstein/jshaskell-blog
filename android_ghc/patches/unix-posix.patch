@@ -1,0 +1,112 @@
+From b1d4a299ec9aa6f42f0df740f2fd41107d935934 Mon Sep 17 00:00:00 2001
+From: Nathan <nathan.huesken@posteo.de>
+Date: Sun, 13 Jan 2013 15:49:30 +0100
+Subject: [PATCH] Changes in unix because of difference in android ndk headers
+
+---
+ System/Posix/Directory.hsc            |    2 --
+ System/Posix/Directory/ByteString.hsc |    2 --
+ System/Posix/Directory/Common.hsc     |   17 -----------------
+ System/Posix/Terminal/Common.hsc      |    4 ++--
+ System/Posix/User.hsc                 |    2 +-
+ 5 files changed, 3 insertions(+), 24 deletions(-)
+
+diff --git a/System/Posix/Directory.hsc b/System/Posix/Directory.hsc
+index 71a70ce..814b987 100644
+--- a/System/Posix/Directory.hsc
++++ b/System/Posix/Directory.hsc
+@@ -29,8 +29,6 @@ module System.Posix.Directory (
+    rewindDirStream,   
+    closeDirStream,
+    DirStreamOffset,
+-   tellDirStream,
+-   seekDirStream,
+ 
+    -- * The working dirctory
+    getWorkingDirectory,
+diff --git a/System/Posix/Directory/ByteString.hsc b/System/Posix/Directory/ByteString.hsc
+index 3ac642b..96f0620 100644
+--- a/System/Posix/Directory/ByteString.hsc
++++ b/System/Posix/Directory/ByteString.hsc
+@@ -29,8 +29,6 @@ module System.Posix.Directory.ByteString (
+    rewindDirStream,   
+    closeDirStream,
+    DirStreamOffset,
+-   tellDirStream,
+-   seekDirStream,
+ 
+    -- * The working dirctory
+    getWorkingDirectory,
+diff --git a/System/Posix/Directory/Common.hsc b/System/Posix/Directory/Common.hsc
+index a608be3..2de0b21 100644
+--- a/System/Posix/Directory/Common.hsc
++++ b/System/Posix/Directory/Common.hsc
+@@ -22,8 +22,6 @@ module System.Posix.Directory.Common (
+        DirStream(..), CDir, CDirent, DirStreamOffset(..),
+        rewindDirStream,
+        closeDirStream,
+-       seekDirStream,
+-       tellDirStream,
+        changeWorkingDirectoryFd,
+   ) where
+ 
+@@ -57,21 +55,6 @@ foreign import ccall unsafe "closedir"
+ 
+ newtype DirStreamOffset = DirStreamOffset COff
+ 
+-seekDirStream :: DirStream -> DirStreamOffset -> IO ()
+-seekDirStream (DirStream dirp) (DirStreamOffset off) =
+-  c_seekdir dirp off
+-
+-foreign import ccall unsafe "seekdir"
+-  c_seekdir :: Ptr CDir -> COff -> IO ()
+-
+-tellDirStream :: DirStream -> IO DirStreamOffset
+-tellDirStream (DirStream dirp) = do
+-  off <- c_telldir dirp
+-  return (DirStreamOffset off)
+-
+-foreign import ccall unsafe "telldir"
+-  c_telldir :: Ptr CDir -> IO COff
+-
+ changeWorkingDirectoryFd :: Fd -> IO ()
+ changeWorkingDirectoryFd (Fd fd) = 
+   throwErrnoIfMinus1Retry_ "changeWorkingDirectoryFd" (c_fchdir fd)
+diff --git a/System/Posix/Terminal/Common.hsc b/System/Posix/Terminal/Common.hsc
+index 5d718a8..9d077bf 100644
+--- a/System/Posix/Terminal/Common.hsc
++++ b/System/Posix/Terminal/Common.hsc
+@@ -272,7 +272,7 @@ controlChar termios cc = unsafePerformIO $ do
+   withTerminalAttributes termios $ \p -> do
+     let c_cc = (#ptr struct termios, c_cc) p
+     val <- peekElemOff c_cc (cc2Word cc)
+-    if val == ((#const _POSIX_VDISABLE)::CCc)
++    if val == ((#const '\0')::CCc)
+        then return Nothing
+        else return (Just (chr (fromEnum val)))
+   
+@@ -290,7 +290,7 @@ withoutCC :: TerminalAttributes
+ withoutCC termios cc = unsafePerformIO $ do
+   withNewTermios termios $ \p -> do
+     let c_cc = (#ptr struct termios, c_cc) p
+-    pokeElemOff c_cc (cc2Word cc) ((#const _POSIX_VDISABLE) :: CCc)
++    pokeElemOff c_cc (cc2Word cc) ((#const '\0') :: CCc)
+ 
+ inputTime :: TerminalAttributes -> Int
+ inputTime termios = unsafePerformIO $ do
+diff --git a/System/Posix/User.hsc b/System/Posix/User.hsc
+index a62648d..9887c97 100644
+--- a/System/Posix/User.hsc
++++ b/System/Posix/User.hsc
+@@ -453,7 +453,7 @@ unpackUserEntry ptr = do
+    passwd <- (#peek struct passwd, pw_passwd) ptr >>= peekCAString
+    uid    <- (#peek struct passwd, pw_uid)    ptr
+    gid    <- (#peek struct passwd, pw_gid)    ptr
+-   gecos  <- (#peek struct passwd, pw_gecos)  ptr >>= peekCAString
++   gecos  <- (#peek struct passwd, pw_name)  ptr >>= peekCAString
+    dir    <- (#peek struct passwd, pw_dir)    ptr >>= peekCAString
+    shell  <- (#peek struct passwd, pw_shell)  ptr >>= peekCAString
+    return (UserEntry name passwd uid gid gecos dir shell)
+-- 
+1.7.10.4
+

@@ -1,0 +1,25 @@
+From 1cf3e56529f638c03c7ef3671dd85e030ad87c87 Mon Sep 17 00:00:00 2001
+From: Nathan <nathan.huesken@posteo.de>
+Date: Sun, 13 Jan 2013 15:43:13 +0100
+Subject: [PATCH] llvm mtriple for android
+
+---
+ compiler/llvmGen/LlvmCodeGen/Ppr.hs |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/compiler/llvmGen/LlvmCodeGen/Ppr.hs b/compiler/llvmGen/LlvmCodeGen/Ppr.hs
+index 218870a..31b75ae 100644
+--- a/compiler/llvmGen/LlvmCodeGen/Ppr.hs
++++ b/compiler/llvmGen/LlvmCodeGen/Ppr.hs
+@@ -58,6 +58,8 @@ moduleLayout = sdocWithPlatform $ \platform ->
+     Platform { platformArch = ArchARM {}, platformOS = OSLinux } ->
+         text "target datalayout = \"e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:64:128-a0:0:64-n32\""
+         $+$ text "target triple = \"arm-unknown-linux-gnueabi\""
++    Platform { platformArch = ArchARM {}, platformOS = OSAndroid } ->
++        text "target triple = \"arm-unknown-linux-androideabi\""
+     _ ->
+         -- FIX: Other targets
+         empty
+-- 
+1.7.10.4
+
