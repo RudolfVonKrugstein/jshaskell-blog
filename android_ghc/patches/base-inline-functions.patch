@@ -1,0 +1,54 @@
+From f7eb2ee25c267d4894649706b91fdaea662675db Mon Sep 17 00:00:00 2001
+From: Nathan <nathan.huesken@posteo.de>
+Date: Sun, 13 Jan 2013 16:50:43 +0100
+Subject: [PATCH] Changed ffi for functions which are inline in android
+
+---
+ System/Posix/Internals.hs |    6 +++---
+ include/HsBase.h          |    4 ++++
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/System/Posix/Internals.hs b/System/Posix/Internals.hs
+index 1633a3e..0ef25b5 100644
+--- a/System/Posix/Internals.hs
++++ b/System/Posix/Internals.hs
+@@ -488,7 +488,7 @@ foreign import ccall unsafe "HsBase.h fork"
+ foreign import ccall unsafe "HsBase.h link"
+    c_link :: CString -> CString -> IO CInt
+ 
+-foreign import ccall unsafe "HsBase.h mkfifo"
++foreign import ccall unsafe "HsBase.h __mkfifo"
+    c_mkfifo :: CString -> CMode -> IO CInt
+ 
+ foreign import ccall unsafe "HsBase.h pipe"
+@@ -503,10 +503,10 @@ foreign import capi unsafe "signal.h sigaddset"
+ foreign import capi unsafe "signal.h sigprocmask"
+    c_sigprocmask :: CInt -> Ptr CSigset -> Ptr CSigset -> IO CInt
+ 
+-foreign import ccall unsafe "HsBase.h tcgetattr"
++foreign import ccall unsafe "HsBase.h __tcgetattr"
+    c_tcgetattr :: CInt -> Ptr CTermios -> IO CInt
+ 
+-foreign import ccall unsafe "HsBase.h tcsetattr"
++foreign import ccall unsafe "HsBase.h __tcsetattr"
+    c_tcsetattr :: CInt -> CInt -> Ptr CTermios -> IO CInt
+ 
+ foreign import capi unsafe "HsBase.h utime"
+diff --git a/include/HsBase.h b/include/HsBase.h
+index b1a62fd..8755b30 100644
+--- a/include/HsBase.h
++++ b/include/HsBase.h
+@@ -175,6 +175,10 @@ extern int fdReady(int fd, int write, int msecs, int isSock);
+ # endif
+ #endif
+ 
++INLINE int __mkfifo(const char *__p, mode_t __m) {return mkfifo(__p,__m);}
++INLINE int __tcgetattr(int fd, struct termios *s) {return tcgetattr(fd,s);}
++INLINE int __tcsetattr(int fd, int __opt, const struct termios *s) {return tcsetattr(fd,__opt,s);}
++
+ INLINE int __hscore_get_errno(void) { return errno; }
+ INLINE void __hscore_set_errno(int e) { errno = e; }
+ 
+-- 
+1.7.10.4
+
