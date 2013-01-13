@@ -1,3 +1,5 @@
+I am on ubuntu 12.10 64 bit.
+
 Install android ndk!
 If I do
 
