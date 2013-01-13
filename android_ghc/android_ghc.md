@@ -24,18 +24,18 @@ apply patch 2 and 3 from http://web.archiveorange.com/archive/v/j7U5dAvNego9Gwze
 These are needed for a cross compile.
 
 Some more patches are needed!
-To inform llvm of the target architecture, apply mtriple.patch.
+To inform llvm of the target architecture, apply [mtriple.patch][mtriple].
 I wonder if one should also add a data layout here???
 
 In the ndk headers, winsize is defined in terminfo.h.
-in libraries/haskeline: add-terminfo.patch
+in libraries/haskeline: [add-terminfo.patch][add-terminfo]
 
 For some reason in the android ndk build system when including termios.h, the offsetof macro is set to something, that can not be used as a constant expression (see http://stackoverflow.com/questions/14233983/storage-size-not-constant-when-using-offsetof-and-including-termios-h-with-andro)
-in utils/hsc2hs: offset.patch
+in utils/hsc2hs: [offset.patch][offset]
 
 There seem to be some more differences in the posix headers in the android ndk.
 Some pw_gecos field of passwd struct is missing. We replace it with pw_name. Also telldir and seekdir are missing. We just remove those from the ffi.
-In libraries/unix apply unix-posix.patch
+In libraries/unix apply [unix-posix.patch][unix-posix]
 
 Some ubuntu package one needs (hopefully complete list):
 
@@ -103,3 +103,8 @@ with
     #define HTYPE_FLOAT Float
 
 and do make again.
+
+[add-terminfo]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/add-terminfo.patch
+[mtriple]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/mtriple.patch
+[offset]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/offset.patch
+[unix-posix]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/unix-posix.patch
