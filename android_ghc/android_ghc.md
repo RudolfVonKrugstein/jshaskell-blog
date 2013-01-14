@@ -25,6 +25,8 @@ checkout ghc:
 apply patch 2 and 3 from http://web.archiveorange.com/archive/v/j7U5dAvNego9GwzeIPFn (0001-Set-up-for-QNXNTO-OS.patch not needed).
 These are needed for a cross compile.
 
+To make the android os known to the build system, apply [introduce-android-os.patch][introduce-android-os].
+
 Some more patches are needed!
 To inform llvm of the target architecture, apply [mtriple.patch][mtriple].
 I wonder if one should also add a data layout here???
@@ -112,6 +114,7 @@ and do make again.
 
 Now you can use ./inplace/bin/ghc-stage1 for compiling your haskell files to executable which can be exectued on the android device.
 
+[introduce-android-os]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/introduce_android_os.patch
 [add-terminfo]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/add-terminfo.patch
 [mtriple]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/mtriple.patch
 [offset]: https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/android_ghc/patches/offset.patch
