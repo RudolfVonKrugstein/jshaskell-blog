@@ -1,0 +1,57 @@
+From 013f14753166a81c45f4e5ed1ed074aa4216c527 Mon Sep 17 00:00:00 2001
+From: Nathan <nathan.huesken@posteo.de>
+Date: Mon, 14 Jan 2013 10:34:30 +0100
+Subject: [PATCH] Add android OS
+
+---
+ aclocal.m4                 |    6 ++++++
+ compiler/utils/Platform.hs |    2 ++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index 127f528..07de3dd 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -241,6 +241,9 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
+         dragonfly|osf1|hpux|linuxaout|freebsd2|cygwin32|gnu|nextstep2|nextstep3|sunos4|ultrix|irix|aix)
+             test -z "[$]2" || eval "[$]2=OSUnknown"
+             ;;
++        linux-android)
++            test -z "[$]2" || eval "[$]2=OSAndroid"
++            ;;
+         *)
+             echo "Unknown OS '[$]1'"
+             exit 1
+@@ -1808,6 +1811,9 @@ AC_DEFUN([GHC_CONVERT_VENDOR],[
+ # converts os from gnu to ghc naming, and assigns the result to $target_var
+ AC_DEFUN([GHC_CONVERT_OS],[
+ case "$1" in
++  linux-android*)
++    $2="linux-android"
++    ;;
+   linux-*|linux)
+     $2="linux"
+     ;;
+diff --git a/compiler/utils/Platform.hs b/compiler/utils/Platform.hs
+index 76c9fa3..d17ff3b 100644
+--- a/compiler/utils/Platform.hs
++++ b/compiler/utils/Platform.hs
+@@ -69,6 +69,7 @@ data OS
+         | OSKFreeBSD
+         | OSHaiku
+         | OSOsf3
++        | OSAndroid
+         deriving (Read, Show, Eq)
+ 
+ -- | ARM Instruction Set Architecture, Extensions and ABI
+@@ -109,6 +110,7 @@ osElfTarget OSMinGW32   = False
+ osElfTarget OSKFreeBSD  = True
+ osElfTarget OSHaiku     = True
+ osElfTarget OSOsf3      = False -- I don't know if this is right, but as
++osElfTarget OSAndroid   = True
+                                 -- per comment below it's safe
+ osElfTarget OSUnknown   = False
+  -- Defaulting to False is safe; it means don't rely on any
+-- 
+1.7.10.4
+
