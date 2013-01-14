@@ -61,6 +61,12 @@ We need config.sub and config.guess, that accept accept out target:
     cp -av /usr/share/misc/config.sub ./
     cp -av /usr/share/misc/config.guess ./
 
+same happens in libraries/unix, so go to
+
+    cd libraries/unix
+    cp -av /usr/share/misc/config.sub ./
+    cp -av /usr/share/misc/config.guess ./
+
 Configure ghc (for now unregistered, if we do not do this the compiled haskell programs will segfault):
 
     perl boot
@@ -71,17 +77,7 @@ Now compile:
 
     make
 
-This will fail with:
-
-    configure: error: /bin/bash ./config.sub arm-unknown-linux-android failed
-
-so go do
-
-    cd libraries/unix
-    cp -av /usr/share/misc/config.sub ./
-    cp -av /usr/share/misc/config.guess ./
-
-again, this will fail with
+This will fail with
 
     expectJust initTcInteractive
 
