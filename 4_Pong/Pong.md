@@ -6,7 +6,7 @@ Here is a preview (again, click on the canvas to get input focus). If you are no
 
 ** Note: ** This currently only works if you are viewing this article only (not in the flow of the complete blog). I am working on the problem ...
 
-<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/4_Pong/code/compiled/Pong.js" type="text/javascript"></script>
+<script src="https://rawgithub.com/RudolfVonKrugstein/jshaskell-blog/master/4_Pong/code/compiled/Pong.js" type="text/javascript"></script>
 <canvas height="400" id="canvas2" style="background-color: white;" width="600" tabindex="1"></canvas>
 
 But first we will need some perquisites. I will utilize Functional Reactive Programming (FRP) using the functions defined here: [Purely Functional, Declarative Game Logic Using Reactive Programming][FRP]. I take the terminus "coroutine" from that blog article. I like to think of a coroutine as "state full function". The output of the coroutine does not only depend on its input but also on the input passed to it in previous calls.

@@ -13,7 +13,7 @@ But, now, as always, here is a preview. As always you have to click the canvas t
 
 **Note:** This currently only works if you are viewing this article only (not in the flow of the complete blog). I am working on the problem ...
 
-<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/5_Breakout/code/compiled/Breakout.js" type="text/javascript"></script>
+<script src="https://rawgithub.com/RudolfVonKrugstein/jshaskell-blog/master/5_Breakout/code/compiled/Breakout.js" type="text/javascript"></script>
 <canvas height="400" id="canvas3" style="background-color: white;" width="600" tabindex="1"></canvas>
 
 But let me tell you how I did it :).

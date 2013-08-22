@@ -9,7 +9,7 @@ In this blog post, the breakout example from the [last Post][last] has been impr
 
 But that is not all! Instead of using the simple Coroutines we are now using a full blown FRP library called [netwire][netwire]. But more about that later, here is the preview. As alwyas you have to click the canvas to get input focus. If you are not viewing this blog article on blogspot and the application does not work, try the original [aricle page][this].
 
-<script src="https://raw.github.com/RudolfVonKrugstein/jshaskell-blog/master/6_BreakoutImproved/code/compiled/BreakoutImproved.js" type="text/javascript"></script>
+<script src="https://rawgithub.com/RudolfVonKrugstein/jshaskell-blog/master/6_BreakoutImproved/code/compiled/BreakoutImproved.js" type="text/javascript"></script>
 <canvas height="400" id="canvas4" style="background-color: white;" width="600" tabindex="1"></canvas>
 
 I had a lot of help over the [haskell beginners mailing list][haskellbeginners]. I will try to add links to the specific topics whenever I am writing something I had help with.
