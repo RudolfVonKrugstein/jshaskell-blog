@@ -1,60 +1,60 @@
-function jsGetContext2D(canvas, _) {
-	return [1,0,canvas.getContext("2d")];
+function jsGetContext2D(canvas) {
+  return canvas.getContext("2d");
 }
 
-function jsBeginPath(context, _) {
+function jsBeginPath(context) {
 	context.beginPath();
-	return [1,0];
+	return;
 }
 
-function jsClosePath(context, _) {
+function jsClosePath(context) {
 	context.closePath();
-	return [1,0];
+	return;
 }
 
-function jsFill(context, _) {
+function jsFill(context) {
 	context.fill();
-	return [1,0];
+	return;
 }
 
-function jsArc(context, x, y, r, minPhi, maxPhi, ccw, _) {
+function jsArc(context, x, y, r, minPhi, maxPhi, ccw) {
 	context.arc(x,y,r,minPhi,maxPhi,ccw);
-	return [1,0];
+	return;
 }
 
-function jsFillRect(context, x, y, width, height, _) {
+function jsFillRect(context, x, y, width, height) {
 	context.fillRect(x,y,width,height);
-	return [1,0];
+	return;
 }
 
-function jsSetFillColor(context, color, _) {
+function jsSetFillColor(context, color) {
 	context.fillStyle = color;
-	return [1,0];
+	return;
 }
 
-function jsClear(context, _) {
+function jsClear(context) {
 	context.clearRect(0.0, 0.0, context.canvas.width, context.canvas.height);
-        return [1,0]
+        return;
 }
 
-function jsSetInterval(msecs, cb, _) {
+function jsSetInterval(msecs, cb) {
 	window.setInterval(function() {A(cb,[0]);}, msecs);
-	return [1,0];
+	return;
 }
 
-function jsSetOnLoad(cb, _) {
+function jsSetOnLoad(cb) {
 	window.addEventListener('load', function() {A(cb,[0]);}, false);
-	return [1,0];
+	return;
 }
 
 var allObjects = {}
 
 function jsSaveGlobalObject(name, obj) {
 	allObjects[name] = obj;
-	return [1,0];
+	return;
 }
 
 function jsLoadGlobalObject(name) {
-	return [1,0,allObjects[name]];
+	return allObjects[name];
 }
 
