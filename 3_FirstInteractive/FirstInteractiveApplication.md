@@ -101,6 +101,9 @@ We will follow the convention, that functions taking javascript specific paramet
 
 ## Haste
 
+> **Update:** The way FFI functions have to writting with haste has changed since the blog post has original been written. At that time returning values from javascript to haskell
+> was a little bit more cumbersome. I have updated this blog post to reflect the new way of doing it. I hope I did not forget something in the process. So if you find an error, please comment.
+
 Setting callbacks in haste is a little different.
 
 For every callback function a javascript function has to be created which invokes the special function "A()" with the callback. This function can than be used for the callback. Read the section "Callbacks" of [js-externls.txt](https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt) in the doc subdirectory of the [haste github repository](https://github.com/valderman/haste-compiler).
@@ -108,14 +111,14 @@ For every callback function a javascript function has to be created which invoke
 The arguments for the haskell function are the second argument of "A()" and have to be passed as a list similar to the required return value of javascript function included by the FFI. Again, this is explained in [js-externals.txt](https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt).
 
 ```javascript
-function jsSetInterval(msecs, cb, _) {
+function jsSetInterval(msecs, cb) {
     window.setInterval(function() {A(cb,[0]);}, msecs);
-    return [1,0];
+    return;
 }
 
-function jsSetOnLoad(cb, _) {
+function jsSetOnLoad(cb) {
     window.addEventListener('load', function() {A(cb,[0]);}, false);
-    return [1,0];
+    return;
 }
 ```
 
@@ -192,11 +195,11 @@ var allObjects = {}
 
 function jsSaveGlobalObject(name, obj) {
  allObjects[name] = obj;
- return [1,0];
+ return;
 }
 
 function jsLoadGlobalObject(name) {
- return [1,0,allObjects[name]];
+ return allObjects[name];
 }
 ```
 
@@ -284,23 +287,23 @@ function jsSetFillColor(context, color) {
 Again, for haste we have to write javascript functions with the correct return type:
 
 ```javascript
-function jsGetContext2d(canvas, _) {
- return [1,0,canvas.getContext("2d")];
+function jsGetContext2d(canvas) {
+ return canvas.getContext("2d");
 }
 
-function jsFillRect(context, x, y, width, height, _) {
+function jsFillRect(context, x, y, width, height) {
  context.fillRect(x,y,width,height);
- return [1,0];
+ return;
 }
 
-function jsSetFillColor(context, color, _) {
+function jsSetFillColor(context, color) {
  context.fillStyle = color;
- return [1,0];
+ return;
 }
 
-function jsClear(context, _) {
+function jsClear(context) {
  context.clearRect(0.0, 0.0, context.canvas.width, context.canvas.height);
-        return [1,0]
+ return;
 }
 ```
 
