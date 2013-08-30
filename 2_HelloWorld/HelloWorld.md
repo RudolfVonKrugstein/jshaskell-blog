@@ -114,23 +114,21 @@ Haste can be found here: [Haste GitHub](https://github.com/valderman/haste-compi
 
 Again, we need a way to import a function to get the document and to write into the contents of the document. Information on how to import javascript functions can be found in [the doc subdirectory](https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt) of the haste repository.
 
-Haste is not as flexible as UHC when importing JavaScript functions. It does not allow placing the parameters of the haskell function in the javascript code with "%N". It also does not allow the custom type "Document" to be used as a parameter or return type. Instead "JSAny" must be used. Also the return type of the JavaScript functions must be
+> **Update:** The way FFI functions have to writting with haste has changed since the blog post has original been written. At that time returning values from javascript to haskell
+> was a little bit more cumbersome. I have updated this blog post to reflect the new way of doing it. I hope I did not forget something in the process. So if you find an error, please comment.
 
-```Javascript
-[1,anything,actual_return_object]
-```
+Haste is not as flexible as UHC when importing JavaScript functions. It does not allow placing the parameters of the haskell function in the javascript code with "%N". It also does not allow the custom type "Document" to be used as a parameter or return type. Instead "JSAny" must be used.
 
-Last but not least, they must take an extra parameter for the "state of the world" (nothing has to be done with it, it just has to exist).
 So we create a file "helpers.hs" with out Javascript helper functions:
 
 ```javascript
-function objWrite(obj, text, _realWorld) {
+function objWrite(obj, text) {
     obj.write(text); // Call the method
-    return [1,0]; // Return ()
+    return; // Return ()
 }
 
-function getDocument(_realWorld) {
-    return [1, 0, document];
+function getDocument() {
+    return document;
 }
 ```
 
